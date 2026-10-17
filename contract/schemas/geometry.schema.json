@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Geometría de anotación en coordenadas de nivel 0 (contrato v0.1)",
+  "description": "Píxeles del nivel 0 (máxima resolución), con decimales. Origen en la esquina superior izquierda de la imagen; x crece hacia la derecha e y hacia abajo; la imagen ocupa [0, W] × [0, H]. Este esquema valida la forma (si falla, la API responde 400). Las reglas que necesitan contexto —límites de la imagen, geometría degenerada, autointersección— las valida la API y responde 422. El archivo no usa $defs a propósito: así los generadores de tipos (openapi-typescript) producen una unión discriminada limpia.",
+  "oneOf": [
+    {
+      "title": "Rectangle",
+      "description": "Rectángulo alineado a los ejes; (x, y) es su esquina superior izquierda.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "rectangle"
+        },
+        "x": {
+          "type": "number",
+          "minimum": 0
+        },
+        "y": {
+          "type": "number",
+          "minimum": 0
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "type",
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "title": "Polygon",
+      "description": "Polígono simple de al menos 3 vértices. El cierre es implícito: el último punto no repite el primero.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "polygon"
+        },
+        "points": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 10000,
+          "items": {
+            "description": "Par [x, y] en píxeles de nivel 0: exactamente dos números no negativos. Se expresa con minItems/maxItems (no con prefixItems) para que openapi-fetch no pierda el tipo: sus transformaciones Readable/Writable convierten las tuplas en arreglos.",
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": 0
+            },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        }
+      },
+      "required": [
+        "type",
+        "points"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

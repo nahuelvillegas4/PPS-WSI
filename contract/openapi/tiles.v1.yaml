@@ -1,0 +1,189 @@
+openapi: 3.1.0
+info:
+  title: GIA · Servicio de teselas (PPS 1)
+  version: 0.1.0
+  description: |
+    Contrato de integración v0.1.0 (escrito a mano; ver ADR-05). A partir de la primera
+    implementación, FastAPI genera la especificación y la CI la compara con este archivo.
+
+    - Las rutas `/tiles/v1/...` las publica la pasarela Nginx detrás de `auth_request` (ADR-04).
+      La pasarela agrega `X-Storage-Key`; el servicio nunca consulta la API ni la base (ADR-03).
+    - Las rutas `/internal/v1/...` solo son alcanzables desde la red interna de Docker.
+    - Fuente Deep Zoom generada al vuelo con `DeepZoomGenerator(tile_size=254, overlap=1,
+      limit_bounds=False)`: la imagen DZI coincide con el nivel 0 completo (ADR-02, ADR-06).
+    - Errores en formato RFC 9457 (`application/problem+json`), JSON en camelCase.
+servers:
+  - url: /
+paths:
+  /tiles/v1/images/{imageId}.dzi:
+    get:
+      tags: [tiles]
+      operationId: getDzi
+      summary: Descriptor Deep Zoom de la imagen.
+      parameters:
+        - $ref: '#/components/parameters/ImageId'
+        - $ref: '#/components/parameters/StorageKeyHeader'
+      responses:
+        '200':
+          description: Descriptor DZI. Dimensiones = nivel 0.
+          headers:
+            Cache-Control: { $ref: '#/components/headers/CacheControl' }
+          content:
+            application/xml:
+              schema:
+                type: string
+                examples:
+                  - '<Image TileSize="254" Overlap="1" Format="jpeg" xmlns="http://schemas.microsoft.com/deepzoom/2008"><Size Width="1376" Height="1020" /></Image>'
+        '400': { $ref: '#/components/responses/MissingStorageKey' }
+        '404': { $ref: '#/components/responses/FileNotFound' }
+        '422': { $ref: '#/components/responses/InvalidStorageKey' }
+  /tiles/v1/images/{imageId}_files/{level}/{col}_{row}.jpeg:
+    get:
+      tags: [tiles]
+      operationId: getTile
+      summary: Tesela JPEG del nivel Deep Zoom `level` (0 = 1 × 1 px; el último = nivel 0 del archivo).
+      parameters:
+        - $ref: '#/components/parameters/ImageId'
+        - name: level
+          in: path
+          required: true
+          schema: { type: integer, minimum: 0 }
+        - name: col
+          in: path
+          required: true
+          schema: { type: integer, minimum: 0 }
+        - name: row
+          in: path
+          required: true
+          schema: { type: integer, minimum: 0 }
+        - $ref: '#/components/parameters/StorageKeyHeader'
+      responses:
+        '200':
+          description: Tesela (hasta 256 × 256 px con overlap 1).
+          headers:
+            Cache-Control: { $ref: '#/components/headers/CacheControl' }
+          content:
+            image/jpeg:
+              schema: { type: string, contentMediaType: image/jpeg }
+        '400': { $ref: '#/components/responses/MissingStorageKey' }
+        '404':
+          description: 'Nivel o dirección inexistente (`urn:gia:problem:tile-not-found`) o archivo ausente (`urn:gia:problem:file-not-found`).'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetails' }
+        '422': { $ref: '#/components/responses/InvalidStorageKey' }
+
+  /internal/v1/inspect:
+    get:
+      tags: [internal]
+      operationId: inspectImage
+      summary: Metadatos técnicos de un archivo del volumen (lo usa la API al registrar).
+      description: |
+        Abre el archivo con `openslide.open_slide()` (WSI o JPG/PNG por el mismo camino) y devuelve
+        solo campos de una lista blanca. Nunca devuelve píxeles ni imágenes asociadas (label, macro):
+        solo informa sus nombres para advertir al administrador (ADR-12).
+      parameters:
+        - name: storageKey
+          in: query
+          required: true
+          schema: { type: string, examples: ['wsi/CMU-1.svs'] }
+      responses:
+        '200':
+          description: Metadatos.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImageInspection' }
+        '404': { $ref: '#/components/responses/FileNotFound' }
+        '415':
+          description: Formato no soportado (`urn:gia:problem:unsupported-image-format`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetails' }
+        '422': { $ref: '#/components/responses/InvalidStorageKey' }
+
+  /health/live:
+    get:
+      tags: [ops]
+      operationId: tilesLive
+      responses:
+        '200': { description: El proceso responde. }
+  /health/ready:
+    get:
+      tags: [ops]
+      operationId: tilesReady
+      responses:
+        '200': { description: El volumen de imágenes está montado y es legible. }
+        '503': { description: No está listo. }
+
+components:
+  headers:
+    CacheControl:
+      description: '`private, max-age=86400`: las imágenes son inmutables una vez registradas y no deben guardarse en cachés compartidas.'
+      schema: { type: string }
+  parameters:
+    ImageId:
+      name: imageId
+      in: path
+      required: true
+      schema: { type: integer, format: int64, minimum: 1 }
+    StorageKeyHeader:
+      name: X-Storage-Key
+      in: header
+      required: true
+      description: 'Lo agrega la pasarela a partir de la respuesta de `auth_request`. El navegador no puede fijarlo: la pasarela lo sobrescribe.'
+      schema: { type: string, examples: ['cric/0001.png'] }
+  responses:
+    MissingStorageKey:
+      description: 'Falta `X-Storage-Key`; indica una pasarela mal configurada (`urn:gia:problem:missing-storage-key`).'
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    FileNotFound:
+      description: El archivo no existe en el volumen (`urn:gia:problem:file-not-found`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    InvalidStorageKey:
+      description: 'Clave absoluta, con `..` o fuera del volumen (`urn:gia:problem:invalid-storage-key`).'
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+  schemas:
+    ProblemDetails:
+      type: object
+      properties:
+        type: { type: string, format: uri-reference }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        traceId: { type: string }
+      required: [type, title, status, traceId]
+    ImageInspection:
+      type: object
+      properties:
+        storageKey: { type: string }
+        format: { type: string, enum: [svs, png, jpeg] }
+        kind: { type: string, enum: [wsi, conventional] }
+        width: { type: integer, minimum: 1, description: Ancho de nivel 0. }
+        height: { type: integer, minimum: 1, description: Alto de nivel 0. }
+        levelCount: { type: integer, minimum: 1 }
+        levels:
+          type: array
+          items:
+            type: object
+            properties:
+              width: { type: integer }
+              height: { type: integer }
+              downsample: { type: number }
+            required: [width, height, downsample]
+        mppX: { type: [number, 'null'] }
+        mppY: { type: [number, 'null'] }
+        vendor: { type: [string, 'null'], examples: ['aperio'] }
+        objectivePower: { type: [number, 'null'] }
+        associatedImages:
+          type: array
+          description: Solo nombres (p. ej. label, macro, thumbnail). Nunca se sirven.
+          items: { type: string }
+        fileSizeBytes: { type: integer, format: int64 }
+      required: [storageKey, format, kind, width, height, levelCount, levels, mppX, mppY, vendor, objectivePower, associatedImages, fileSizeBytes]

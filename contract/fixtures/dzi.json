@@ -1,0 +1,169 @@
+{
+  "contractVersion": "0.1.0",
+  "description": "Direccionamiento Deep Zoom del servicio de teselas. Verificado con openslide.deepzoom.DeepZoomGenerator (openslide-python 1.4.6, OpenSlide 4.0.1) el 28/09/2026.",
+  "generator": {
+    "tileSize": 254,
+    "overlap": 1,
+    "limitBounds": false,
+    "format": "jpeg"
+  },
+  "urlTemplate": "/tiles/v1/images/{imageId}_files/{level}/{col}_{row}.jpeg",
+  "rules": [
+    "El nivel Deep Zoom 0 mide 1 × 1 px y el último es la resolución completa (al revés que en OpenSlide).",
+    "Cantidad de niveles = ceil(log2(max(W, H))) + 1.",
+    "La tesela que contiene un punto (x0, y0) de nivel 0 en el nivel z es (floor(x0 / 2^(zmax − z) / 254), floor(y0 / 2^(zmax − z) / 254)).",
+    "Con overlap = 1, las teselas interiores miden 256 px y las de borde menos."
+  ],
+  "cases": [
+    {
+      "id": "D1",
+      "description": "WSI simulada de 100.000 × 80.000 px con niveles de SVS de downsample 1, 4 y 16.",
+      "image": {
+        "width": 100000,
+        "height": 80000,
+        "slideLevelDownsamples": [
+          1,
+          4,
+          16
+        ]
+      },
+      "levelCount": 18,
+      "fullResolutionLevel": 17,
+      "levelDimensions": {
+        "17": [
+          100000,
+          80000
+        ],
+        "16": [
+          50000,
+          40000
+        ],
+        "15": [
+          25000,
+          20000
+        ]
+      },
+      "levelTiles": {
+        "17": [
+          394,
+          315
+        ],
+        "15": [
+          99,
+          79
+        ]
+      },
+      "totalTiles": 165747,
+      "tileForLevel0Point": [
+        {
+          "level0": [
+            32000,
+            21500
+          ],
+          "level": 15,
+          "address": [
+            31,
+            21
+          ],
+          "path": "15/31_21.jpeg"
+        }
+      ],
+      "tileReads": [
+        {
+          "level": 15,
+          "address": [
+            31,
+            21
+          ],
+          "level0Location": [
+            31492,
+            21332
+          ],
+          "slideLevel": 1,
+          "readSize": [
+            256,
+            256
+          ]
+        },
+        {
+          "level": 17,
+          "address": [
+            0,
+            0
+          ],
+          "level0Location": [
+            0,
+            0
+          ],
+          "slideLevel": 0,
+          "readSize": [
+            255,
+            255
+          ]
+        },
+        {
+          "level": 17,
+          "address": [
+            393,
+            314
+          ],
+          "level0Location": [
+            99821,
+            79755
+          ],
+          "slideLevel": 0,
+          "readSize": [
+            179,
+            245
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "description": "Imagen convencional de 1.376 × 1.020 px abierta con open_slide() (ImageSlide): mismo camino que una WSI.",
+      "image": {
+        "width": 1376,
+        "height": 1020,
+        "slideClass": "ImageSlide"
+      },
+      "levelCount": 12,
+      "fullResolutionLevel": 11,
+      "levelDimensions": {
+        "11": [
+          1376,
+          1020
+        ],
+        "10": [
+          688,
+          510
+        ]
+      },
+      "levelTiles": {
+        "11": [
+          6,
+          5
+        ],
+        "10": [
+          3,
+          3
+        ]
+      },
+      "totalTiles": 52,
+      "dzi": "<Image TileSize=\"254\" Overlap=\"1\" Format=\"jpeg\" xmlns=\"http://schemas.microsoft.com/deepzoom/2008\"><Size Width=\"1376\" Height=\"1020\" /></Image>",
+      "tileSizes": [
+        {
+          "level": 11,
+          "address": [
+            5,
+            4
+          ],
+          "size": [
+            107,
+            5
+          ]
+        }
+      ]
+    }
+  ]
+}

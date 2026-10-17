@@ -1,0 +1,385 @@
+{
+  "contractVersion": "0.1.0",
+  "description": "Conversiones de la exportación. COCO copia coordenadas de nivel 0; YOLO normaliza x por el ancho e y por el alto (6 decimales) y usa índices de clase desde 0.",
+  "image": {
+    "id": 7,
+    "storageKey": "cric/0001.png",
+    "kind": "conventional",
+    "width": 1376,
+    "height": 1020
+  },
+  "classes": [
+    {
+      "id": 11,
+      "name": "NILM",
+      "color": "#2ca02c",
+      "displayOrder": 0
+    },
+    {
+      "id": 12,
+      "name": "ASC-US",
+      "color": "#bcbd22",
+      "displayOrder": 1
+    },
+    {
+      "id": 13,
+      "name": "LSIL",
+      "color": "#ff7f0e",
+      "displayOrder": 2
+    },
+    {
+      "id": 14,
+      "name": "ASC-H",
+      "color": "#e377c2",
+      "displayOrder": 3
+    },
+    {
+      "id": 15,
+      "name": "HSIL",
+      "color": "#d62728",
+      "displayOrder": 4
+    },
+    {
+      "id": 16,
+      "name": "SCC",
+      "color": "#7f0000",
+      "displayOrder": 5
+    }
+  ],
+  "yoloClassIndexRule": "Índice YOLO = posición de la clase en la lista del dataset ordenada por displayOrder y luego por id, empezando en 0. category_id de COCO = id de la clase.",
+  "annotations": [
+    {
+      "id": 10,
+      "classId": 15,
+      "geometry": {
+        "type": "rectangle",
+        "x": 600,
+        "y": 390,
+        "width": 100,
+        "height": 100
+      },
+      "coco": {
+        "id": 10,
+        "image_id": 7,
+        "category_id": 15,
+        "bbox": [
+          600,
+          390,
+          100,
+          100
+        ],
+        "segmentation": [
+          [
+            600,
+            390,
+            700,
+            390,
+            700,
+            490,
+            600,
+            490
+          ]
+        ],
+        "area": 10000,
+        "iscrowd": 0
+      },
+      "yoloDetect": "4 0.472384 0.431373 0.072674 0.098039",
+      "yoloSegment": "4 0.436047 0.382353 0.508721 0.382353 0.508721 0.480392 0.436047 0.480392"
+    },
+    {
+      "id": 11,
+      "classId": 13,
+      "geometry": {
+        "type": "polygon",
+        "points": [
+          [
+            10,
+            10
+          ],
+          [
+            110,
+            10
+          ],
+          [
+            60,
+            90
+          ]
+        ]
+      },
+      "coco": {
+        "id": 11,
+        "image_id": 7,
+        "category_id": 13,
+        "bbox": [
+          10,
+          10,
+          100,
+          80
+        ],
+        "segmentation": [
+          [
+            10,
+            10,
+            110,
+            10,
+            60,
+            90
+          ]
+        ],
+        "area": 4000,
+        "iscrowd": 0
+      },
+      "yoloDetect": "2 0.043605 0.049020 0.072674 0.078431",
+      "yoloSegment": "2 0.007267 0.009804 0.079942 0.009804 0.043605 0.088235"
+    }
+  ],
+  "wsi": {
+    "description": "En una WSI, COCO usa las dimensiones y coordenadas de nivel 0 de la imagen completa (sin recortes).",
+    "image": {
+      "id": 42,
+      "storageKey": "wsi/CMU-1.svs",
+      "kind": "wsi",
+      "width": 100000,
+      "height": 80000
+    },
+    "annotation": {
+      "type": "rectangle",
+      "x": 32000,
+      "y": 21500,
+      "width": 500,
+      "height": 400
+    },
+    "coco": {
+      "bbox": [
+        32000,
+        21500,
+        500,
+        400
+      ],
+      "area": 200000,
+      "segmentation": [
+        [
+          32000,
+          21500,
+          32500,
+          21500,
+          32500,
+          21900,
+          32000,
+          21900
+        ]
+      ]
+    }
+  },
+  "cricPointToBox": [
+    {
+      "nucleus": [
+        650,
+        440
+      ],
+      "boxSize": 100,
+      "image": {
+        "width": 1376,
+        "height": 1020
+      },
+      "rectangle": {
+        "type": "rectangle",
+        "x": 600,
+        "y": 390,
+        "width": 100,
+        "height": 100
+      },
+      "clipped": false
+    },
+    {
+      "nucleus": [
+        30,
+        1000
+      ],
+      "boxSize": 100,
+      "image": {
+        "width": 1376,
+        "height": 1020
+      },
+      "rectangle": {
+        "type": "rectangle",
+        "x": 0,
+        "y": 950,
+        "width": 80,
+        "height": 70
+      },
+      "clipped": true
+    }
+  ],
+  "internalExportExample": {
+    "format": "gia-annotations",
+    "formatVersion": "1.0",
+    "exportedAt": "2026-11-20T15:30:00Z",
+    "exportedBy": "gino",
+    "filter": {
+      "authors": "all"
+    },
+    "coordinateSystem": {
+      "reference": "level0",
+      "units": "px",
+      "origin": "top-left-corner",
+      "yAxis": "down"
+    },
+    "project": {
+      "id": 1,
+      "name": "Citología cervical"
+    },
+    "dataset": {
+      "id": 3,
+      "name": "CRIC · subconjunto de prueba"
+    },
+    "classes": [
+      {
+        "id": 11,
+        "name": "NILM",
+        "color": "#2ca02c"
+      },
+      {
+        "id": 12,
+        "name": "ASC-US",
+        "color": "#bcbd22"
+      },
+      {
+        "id": 13,
+        "name": "LSIL",
+        "color": "#ff7f0e"
+      },
+      {
+        "id": 14,
+        "name": "ASC-H",
+        "color": "#e377c2"
+      },
+      {
+        "id": 15,
+        "name": "HSIL",
+        "color": "#d62728"
+      },
+      {
+        "id": 16,
+        "name": "SCC",
+        "color": "#7f0000"
+      }
+    ],
+    "authors": [
+      {
+        "id": 2,
+        "username": "gino",
+        "kind": "human"
+      },
+      {
+        "id": 9,
+        "username": "import-cric",
+        "kind": "import"
+      }
+    ],
+    "images": [
+      {
+        "id": 7,
+        "storageKey": "cric/0001.png",
+        "kind": "conventional",
+        "width": 1376,
+        "height": 1020,
+        "mppX": null,
+        "mppY": null,
+        "annotations": [
+          {
+            "id": 10,
+            "classId": 15,
+            "authorId": 9,
+            "source": "import",
+            "createdAt": "2026-11-18T12:00:00Z",
+            "updatedAt": "2026-11-18T12:00:00Z",
+            "geometry": {
+              "type": "rectangle",
+              "x": 600,
+              "y": 390,
+              "width": 100,
+              "height": 100
+            },
+            "provenance": {
+              "importId": 4,
+              "format": "cric",
+              "conversion": "point-to-box",
+              "nucleus": [
+                650,
+                440
+              ],
+              "boxSize": 100,
+              "sourceRecord": {
+                "cellId": 123
+              }
+            }
+          },
+          {
+            "id": 11,
+            "classId": 13,
+            "authorId": 2,
+            "source": "manual",
+            "createdAt": "2026-11-19T10:02:11Z",
+            "updatedAt": "2026-11-19T10:05:40Z",
+            "geometry": {
+              "type": "polygon",
+              "points": [
+                [
+                  10,
+                  10
+                ],
+                [
+                  110,
+                  10
+                ],
+                [
+                  60,
+                  90
+                ]
+              ]
+            },
+            "provenance": null
+          }
+        ]
+      },
+      {
+        "id": 42,
+        "storageKey": "wsi/CMU-1.svs",
+        "kind": "wsi",
+        "width": 100000,
+        "height": 80000,
+        "mppX": 0.25,
+        "mppY": 0.25,
+        "annotations": [
+          {
+            "id": 981,
+            "classId": 15,
+            "authorId": 2,
+            "source": "manual",
+            "createdAt": "2026-11-20T14:31:07Z",
+            "updatedAt": "2026-11-20T14:31:07Z",
+            "geometry": {
+              "type": "polygon",
+              "points": [
+                [
+                  32010.5,
+                  21480.0
+                ],
+                [
+                  32090.0,
+                  21510.2
+                ],
+                [
+                  32040.3,
+                  21600.8
+                ]
+              ]
+            },
+            "provenance": null
+          }
+        ]
+      }
+    ]
+  }
+}

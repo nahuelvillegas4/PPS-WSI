@@ -1,0 +1,1046 @@
+openapi: 3.1.0
+info:
+  title: GIA · API de gestión y anotación (PPS 2)
+  version: 0.1.0
+  description: |
+    Contrato de integración v0.1.0 (escrito a mano; ver ADR-05). A partir de la primera implementación,
+    la especificación se genera en el build de ASP.NET Core y la CI la compara con este archivo.
+
+    Convenciones (ADR-05):
+    - JSON en camelCase. Los cuerpos rechazan propiedades no previstas (400).
+    - Errores en formato RFC 9457 (`application/problem+json`) con `traceId`.
+      400 = el JSON no cumple el esquema; 422 = viola una regla de dominio.
+    - Coordenadas siempre en píxeles de nivel 0 (ver `contract/schemas/geometry.schema.json`).
+      El servidor valida, nunca transforma coordenadas.
+    - Sesión por cookie HttpOnly `gia_session` emitida por `POST /api/v1/auth/login`.
+      Autor y fechas los asigna el servidor.
+servers:
+  - url: /
+    description: Mismo origen, detrás de la pasarela Nginx.
+security:
+  - sessionCookie: []
+tags:
+  - name: auth
+  - name: users
+  - name: catalog
+  - name: images
+  - name: annotations
+  - name: io
+  - name: internal
+  - name: ops
+paths:
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: Inicia sesión y emite la cookie de sesión.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '204':
+          description: Sesión iniciada. La respuesta incluye `Set-Cookie` (HttpOnly, SameSite=Lax).
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /api/v1/auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      responses:
+        '204': { description: Sesión cerrada. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /api/v1/auth/me:
+    get:
+      tags: [auth]
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Usuario de la sesión actual.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CurrentUser' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /api/v1/users:
+    get:
+      tags: [users]
+      operationId: listUsers
+      description: Solo administradores.
+      responses:
+        '200':
+          description: Usuarios.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/User' } }
+                required: [items]
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [users]
+      operationId: createUser
+      description: Solo administradores. No existe autorregistro.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateUserRequest' }
+      responses:
+        '201':
+          description: Usuario creado.
+          headers:
+            Location: { $ref: '#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/users/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    patch:
+      tags: [users]
+      operationId: updateUser
+      description: Solo administradores. Cambia rol, estado o contraseña.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateUserRequest' }
+      responses:
+        '200':
+          description: Usuario actualizado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/projects:
+    get:
+      tags: [catalog]
+      operationId: listProjects
+      responses:
+        '200':
+          description: Proyectos.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Project' } }
+                required: [items]
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    post:
+      tags: [catalog]
+      operationId: createProject
+      description: Solo administradores.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProjectInput' }
+      responses:
+        '201':
+          description: Proyecto creado.
+          headers:
+            Location: { $ref: '#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/projects/{projectId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [catalog]
+      operationId: getProject
+      responses:
+        '200':
+          description: Proyecto.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [catalog]
+      operationId: updateProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProjectPatch' }
+      responses:
+        '200':
+          description: Proyecto actualizado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [catalog]
+      operationId: deleteProject
+      description: Solo administradores. 409 si el proyecto tiene datasets.
+      responses:
+        '204': { description: Eliminado. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/projects/{projectId}/datasets:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [catalog]
+      operationId: listDatasets
+      responses:
+        '200':
+          description: Datasets del proyecto.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Dataset' } }
+                required: [items]
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [catalog]
+      operationId: createDataset
+      description: Solo administradores.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DatasetInput' }
+      responses:
+        '201':
+          description: Dataset creado.
+          headers:
+            Location: { $ref: '#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Dataset' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/datasets/{datasetId}:
+    parameters:
+      - $ref: '#/components/parameters/DatasetId'
+    get:
+      tags: [catalog]
+      operationId: getDataset
+      responses:
+        '200':
+          description: Dataset.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Dataset' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [catalog]
+      operationId: updateDataset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DatasetPatch' }
+      responses:
+        '200':
+          description: Dataset actualizado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Dataset' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [catalog]
+      operationId: deleteDataset
+      description: Solo administradores. 409 si el dataset tiene imágenes.
+      responses:
+        '204': { description: Eliminado. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/datasets/{datasetId}/classes:
+    parameters:
+      - $ref: '#/components/parameters/DatasetId'
+    get:
+      tags: [catalog]
+      operationId: listClasses
+      responses:
+        '200':
+          description: Clases del dataset ordenadas por displayOrder y luego por id.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/LabelClass' } }
+                required: [items]
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [catalog]
+      operationId: createClass
+      description: Solo administradores. 409 si el nombre ya existe en el dataset.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LabelClassInput' }
+      responses:
+        '201':
+          description: Clase creada.
+          headers:
+            Location: { $ref: '#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LabelClass' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/classes/{classId}:
+    parameters:
+      - $ref: '#/components/parameters/ClassId'
+    patch:
+      tags: [catalog]
+      operationId: updateClass
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LabelClassPatch' }
+      responses:
+        '200':
+          description: Clase actualizada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LabelClass' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [catalog]
+      operationId: deleteClass
+      description: Solo administradores. 409 (`class-in-use`) si la clase tiene anotaciones.
+      responses:
+        '204': { description: Eliminada. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/storage/files:
+    get:
+      tags: [images]
+      operationId: listStorageFiles
+      description: Solo administradores. Lista los archivos disponibles en el volumen de imágenes del servidor.
+      parameters:
+        - name: prefix
+          in: query
+          required: false
+          schema: { type: string, examples: ['cric/'] }
+      responses:
+        '200':
+          description: Archivos bajo el prefijo.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/StorageFile' } }
+                required: [items]
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+
+  /api/v1/datasets/{datasetId}/images:
+    parameters:
+      - $ref: '#/components/parameters/DatasetId'
+    get:
+      tags: [images]
+      operationId: listImages
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        '200':
+          description: Página de imágenes del dataset.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImagePage' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [images]
+      operationId: registerImages
+      description: |
+        Solo administradores. Registra archivos que ya están en el servidor. La API obtiene los
+        metadatos técnicos del servicio de teselas (`GET /internal/v1/inspect`). Operación atómica:
+        si una imagen falla, no se registra ninguna.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterImagesRequest' }
+      responses:
+        '201':
+          description: Imágenes registradas.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Image' } }
+                required: [items]
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '503': { $ref: '#/components/responses/DependencyUnavailable' }
+  /api/v1/images/{imageId}:
+    parameters:
+      - $ref: '#/components/parameters/ImageId'
+    get:
+      tags: [images]
+      operationId: getImage
+      responses:
+        '200':
+          description: Imagen con sus metadatos técnicos y la URL de su fuente DZI.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Image' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/images/{imageId}/annotations:
+    parameters:
+      - $ref: '#/components/parameters/ImageId'
+    get:
+      tags: [annotations]
+      operationId: listAnnotations
+      parameters:
+        - name: author
+          in: query
+          description: '`me` (por defecto), `all` o el id de un usuario.'
+          schema:
+            oneOf:
+              - { type: string, enum: [me, all] }
+              - { type: integer }
+      responses:
+        '200':
+          description: Anotaciones vigentes (no borradas) de la imagen.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Annotation' } }
+                required: [items]
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [annotations]
+      operationId: createAnnotation
+      description: |
+        Crea una anotación del usuario de la sesión. El servidor asigna autor, fechas, `source: manual`
+        y versión. Valida forma (400) y reglas de dominio (422): límites de la imagen, geometría
+        degenerada, autointersección y que la clase pertenezca al dataset de la imagen.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAnnotationRequest' }
+      responses:
+        '201':
+          description: Anotación creada.
+          headers:
+            Location: { $ref: '#/components/headers/Location' }
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Annotation' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+  /api/v1/annotations/{annotationId}:
+    parameters:
+      - $ref: '#/components/parameters/AnnotationId'
+    get:
+      tags: [annotations]
+      operationId: getAnnotation
+      responses:
+        '200':
+          description: Anotación.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Annotation' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [annotations]
+      operationId: updateAnnotation
+      description: Solo el autor. Requiere `If-Match` con la versión vigente (concurrencia optimista).
+      parameters:
+        - $ref: '#/components/parameters/IfMatchRequired'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAnnotationRequest' }
+      responses:
+        '200':
+          description: Anotación actualizada.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Annotation' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+    delete:
+      tags: [annotations]
+      operationId: deleteAnnotation
+      description: Solo el autor. Borrado lógico. `If-Match` es opcional; si se envía, se verifica.
+      parameters:
+        - $ref: '#/components/parameters/IfMatchOptional'
+      responses:
+        '204': { description: Eliminada. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+
+  /api/v1/datasets/{datasetId}/imports:
+    parameters:
+      - $ref: '#/components/parameters/DatasetId'
+    post:
+      tags: [io]
+      operationId: importAnnotations
+      description: |
+        Solo administradores. Importación síncrona y atómica desde una carpeta del volumen de imágenes.
+        Con `dryRun: true` (valor por defecto) valida y devuelve el reporte sin escribir nada.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ImportRequest' }
+      responses:
+        '200':
+          description: Simulación (dryRun). No se escribió nada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportReport' }
+        '201':
+          description: Importación realizada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportReport' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '503': { $ref: '#/components/responses/DependencyUnavailable' }
+  /api/v1/datasets/{datasetId}/export:
+    parameters:
+      - $ref: '#/components/parameters/DatasetId'
+    get:
+      tags: [io]
+      operationId: exportDataset
+      description: |
+        Descarga la exportación del dataset. `internal` es la fuente de verdad; `coco` y `yolo`
+        se derivan de ella. Sin efectos secundarios. `yolo` es condicional (ADR-10).
+      parameters:
+        - name: format
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/ExportFormat' }
+        - name: authors
+          in: query
+          description: '`me` (por defecto), `all` o ids separados por coma.'
+          schema: { type: string, default: me, examples: ['all', '2,5'] }
+      responses:
+        '200':
+          description: 'Archivo de exportación (`Content-Disposition: attachment`).'
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'Documento interno (`contract/schemas/internal-export.schema.json`) o documento COCO. El frontend no interpreta su contenido: lo descarga.'
+            application/zip:
+              schema: { type: string, contentMediaType: application/zip }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+
+  /internal/v1/tile-access:
+    get:
+      tags: [internal]
+      operationId: authorizeTileRequest
+      description: |
+        Solo lo invoca la pasarela (subrequest de `auth_request`); no se expone al navegador.
+        Valida la cookie de sesión, extrae el id de imagen de `X-Original-URI` y, si corresponde,
+        responde 204 con `X-Storage-Key`. Nunca responde 302: Nginx trataría cualquier código
+        distinto de 2xx, 401 y 403 como error.
+      parameters:
+        - name: X-Original-URI
+          in: header
+          required: true
+          schema: { type: string, examples: ['/tiles/v1/images/42_files/15/31_21.jpeg'] }
+      responses:
+        '204':
+          description: Acceso permitido.
+          headers:
+            X-Storage-Key:
+              description: Ruta relativa del archivo dentro del volumen de imágenes.
+              schema: { type: string, examples: ['wsi/CMU-1.svs'] }
+        '401': { description: Sin sesión válida. }
+        '403': { description: La sesión no puede ver esa imagen. }
+
+  /health/live:
+    get:
+      tags: [ops]
+      operationId: apiLive
+      security: []
+      responses:
+        '200': { description: El proceso responde. }
+  /health/ready:
+    get:
+      tags: [ops]
+      operationId: apiReady
+      security: []
+      responses:
+        '200': { description: Base de datos accesible y migraciones aplicadas. }
+        '503': { description: No está lista. }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: gia_session
+  headers:
+    Location:
+      description: URL del recurso creado.
+      schema: { type: string }
+    ETag:
+      description: Versión vigente del recurso, por ejemplo `"7"`.
+      schema: { type: string, examples: ['"7"'] }
+  parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Id' }
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Id' }
+    DatasetId:
+      name: datasetId
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Id' }
+    ClassId:
+      name: classId
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Id' }
+    ImageId:
+      name: imageId
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Id' }
+    AnnotationId:
+      name: annotationId
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Id' }
+    IfMatchRequired:
+      name: If-Match
+      in: header
+      required: true
+      schema: { type: string, examples: ['"7"'] }
+    IfMatchOptional:
+      name: If-Match
+      in: header
+      required: false
+      schema: { type: string }
+  responses:
+    ValidationProblem:
+      description: El JSON no cumple el esquema (`urn:gia:problem:validation`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Unauthenticated:
+      description: Sin sesión o sesión vencida (`urn:gia:problem:unauthenticated`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Forbidden:
+      description: Sin permiso, por ejemplo al editar una anotación ajena (`urn:gia:problem:forbidden`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    NotFound:
+      description: No existe (`urn:gia:problem:not-found`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Conflict:
+      description: 'Conflicto de estado: `duplicate-name`, `class-in-use`, `not-empty`, `already-registered`, `already-imported`.'
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    PreconditionFailed:
+      description: La versión de `If-Match` no es la vigente (`urn:gia:problem:version-mismatch`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    PreconditionRequired:
+      description: Falta `If-Match` (`urn:gia:problem:precondition-required`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    UnprocessableEntity:
+      description: 'Regla de dominio: `geometry-out-of-bounds`, `geometry-degenerate`, `geometry-self-intersection`, `class-not-in-dataset`, `invalid-storage-key`, `unsupported-image-format`, `import-too-large`.'
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    TooManyRequests:
+      description: Demasiados intentos de inicio de sesión (`urn:gia:problem:too-many-requests`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    DependencyUnavailable:
+      description: El servicio de teselas no respondió (`urn:gia:problem:dependency-unavailable`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+  schemas:
+    Id:
+      type: integer
+      format: int64
+      minimum: 1
+    Timestamp:
+      type: string
+      format: date-time
+    ProblemDetails:
+      type: object
+      description: RFC 9457. `type` identifica el problema con una URN `urn:gia:problem:<slug>`.
+      properties:
+        type: { type: string, format: uri-reference, examples: ['urn:gia:problem:geometry-out-of-bounds'] }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        traceId: { type: string, description: 'Igual al X-Request-ID de la pasarela.' }
+        errors:
+          type: object
+          description: Solo en 400. Clave = ruta JSON del campo; valor = mensajes.
+          additionalProperties:
+            type: array
+            items: { type: string }
+      required: [type, title, status, traceId]
+    Role:
+      type: string
+      enum: [admin, annotator]
+    LoginRequest:
+      type: object
+      properties:
+        username: { type: string, minLength: 1, maxLength: 64 }
+        password: { type: string, minLength: 1, maxLength: 256 }
+      required: [username, password]
+      additionalProperties: false
+    CurrentUser:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        username: { type: string }
+        role: { $ref: '#/components/schemas/Role' }
+      required: [id, username, role]
+    User:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        username: { type: string }
+        role: { $ref: '#/components/schemas/Role' }
+        isActive: { type: boolean }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+      required: [id, username, role, isActive, createdAt]
+    CreateUserRequest:
+      type: object
+      properties:
+        username: { type: string, pattern: '^[a-z0-9._-]{3,64}$' }
+        password: { type: string, minLength: 12, maxLength: 256 }
+        role: { $ref: '#/components/schemas/Role' }
+      required: [username, password, role]
+      additionalProperties: false
+    UpdateUserRequest:
+      type: object
+      properties:
+        role: { $ref: '#/components/schemas/Role' }
+        isActive: { type: boolean }
+        password: { type: string, minLength: 12, maxLength: 256 }
+      minProperties: 1
+      additionalProperties: false
+    Project:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+      required: [id, name, description, createdAt]
+    ProjectInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+      required: [name]
+      additionalProperties: false
+    ProjectPatch:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+      minProperties: 1
+      additionalProperties: false
+    Dataset:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        projectId: { $ref: '#/components/schemas/Id' }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+      required: [id, projectId, name, description, createdAt]
+    DatasetInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+      required: [name]
+      additionalProperties: false
+    DatasetPatch:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+      minProperties: 1
+      additionalProperties: false
+    LabelClass:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        datasetId: { $ref: '#/components/schemas/Id' }
+        name: { type: string }
+        color: { type: string, pattern: '^#[0-9a-fA-F]{6}$' }
+        displayOrder: { type: integer, minimum: 0 }
+      required: [id, datasetId, name, color, displayOrder]
+    LabelClassInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64 }
+        color: { type: string, pattern: '^#[0-9a-fA-F]{6}$' }
+        displayOrder: { type: integer, minimum: 0 }
+      required: [name, color]
+      additionalProperties: false
+    LabelClassPatch:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64 }
+        color: { type: string, pattern: '^#[0-9a-fA-F]{6}$' }
+        displayOrder: { type: integer, minimum: 0 }
+      minProperties: 1
+      additionalProperties: false
+    StorageFile:
+      type: object
+      properties:
+        storageKey: { type: string, examples: ['cric/0001.png'] }
+        sizeBytes: { type: integer, format: int64 }
+        kind: { type: string, enum: [wsi, conventional, other] }
+        registeredInDatasets: { type: array, items: { $ref: '#/components/schemas/Id' } }
+      required: [storageKey, sizeBytes, kind, registeredInDatasets]
+    Image:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        datasetId: { $ref: '#/components/schemas/Id' }
+        storageKey: { type: string }
+        name: { type: string, description: Nombre de archivo sin ruta. }
+        kind: { type: string, enum: [wsi, conventional] }
+        format: { type: string, enum: [svs, png, jpeg] }
+        width: { type: integer, minimum: 1, description: Ancho de nivel 0 en px. }
+        height: { type: integer, minimum: 1, description: Alto de nivel 0 en px. }
+        levelCount: { type: integer, minimum: 1, description: 'Niveles de la pirámide del archivo (1 para JPG/PNG).' }
+        mppX: { type: [number, 'null'] }
+        mppY: { type: [number, 'null'] }
+        tileSourceUrl: { type: string, examples: ['/tiles/v1/images/42.dzi'] }
+        registeredAt: { $ref: '#/components/schemas/Timestamp' }
+      required: [id, datasetId, storageKey, name, kind, format, width, height, levelCount, mppX, mppY, tileSourceUrl, registeredAt]
+    ImagePage:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Image' } }
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+      required: [items, page, pageSize, total]
+    RegisterImagesRequest:
+      type: object
+      properties:
+        storageKeys:
+          type: array
+          items: { type: string, minLength: 1 }
+          minItems: 1
+          maxItems: 2000
+          uniqueItems: true
+      required: [storageKeys]
+      additionalProperties: false
+    Geometry:
+      $ref: '../schemas/geometry.schema.json'
+    AnnotationSource:
+      type: string
+      enum: [manual, import]
+    Annotation:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        imageId: { $ref: '#/components/schemas/Id' }
+        classId: { $ref: '#/components/schemas/Id' }
+        authorId: { $ref: '#/components/schemas/Id' }
+        authorUsername: { type: string }
+        source: { $ref: '#/components/schemas/AnnotationSource' }
+        geometry: { $ref: '#/components/schemas/Geometry' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+        version: { type: integer, format: int64, description: 'Igual al ETag sin comillas.' }
+      required: [id, imageId, classId, authorId, authorUsername, source, geometry, createdAt, updatedAt, version]
+    CreateAnnotationRequest:
+      type: object
+      properties:
+        classId: { $ref: '#/components/schemas/Id' }
+        geometry: { $ref: '#/components/schemas/Geometry' }
+      required: [classId, geometry]
+      additionalProperties: false
+    UpdateAnnotationRequest:
+      type: object
+      properties:
+        classId: { $ref: '#/components/schemas/Id' }
+        geometry: { $ref: '#/components/schemas/Geometry' }
+      minProperties: 1
+      additionalProperties: false
+    ImportFormat:
+      type: string
+      enum: [cric]
+      description: 'v0.1: solo CRIC. `labelme` (CCEDD) queda reservado como extensión.'
+    ImportRequest:
+      type: object
+      properties:
+        format: { $ref: '#/components/schemas/ImportFormat' }
+        source: { type: string, description: Carpeta del volumen de imágenes, por ejemplo `cric/`. }
+        dryRun: { type: boolean, default: true }
+        options:
+          type: object
+          properties:
+            boxSize:
+              type: number
+              exclusiveMinimum: 0
+              default: 100
+              description: 'Lado en px de nivel 0 de la caja que reemplaza a cada punto de CRIC (a definir con la supervisión).'
+          additionalProperties: false
+      required: [format, source]
+      additionalProperties: false
+    ImportWarning:
+      type: object
+      properties:
+        code: { type: string, examples: ['box-clipped', 'image-already-registered'] }
+        message: { type: string }
+        record: { type: [string, 'null'], description: Referencia al registro de origen. }
+      required: [code, message]
+    ImportReport:
+      type: object
+      properties:
+        importId: { type: [integer, 'null'], description: null en dryRun. }
+        dryRun: { type: boolean }
+        format: { $ref: '#/components/schemas/ImportFormat' }
+        source: { type: string }
+        images:
+          type: object
+          properties:
+            found: { type: integer }
+            registered: { type: integer }
+            skipped: { type: integer }
+          required: [found, registered, skipped]
+        classes:
+          type: object
+          properties:
+            matched: { type: integer }
+            created: { type: integer }
+          required: [matched, created]
+        annotations:
+          type: object
+          properties:
+            created: { type: integer }
+            skipped: { type: integer }
+          required: [created, skipped]
+        warnings: { type: array, items: { $ref: '#/components/schemas/ImportWarning' } }
+      required: [importId, dryRun, format, source, images, classes, annotations, warnings]
+    ExportFormat:
+      type: string
+      enum: [internal, coco, yolo]

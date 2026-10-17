@@ -1,0 +1,334 @@
+{
+  "contractVersion": "0.1.0",
+  "description": "Casos de validación de geometrías sobre una imagen de 1.376 × 1.020 px. 'status' 400 = viola el esquema (forma); 422 = viola una regla que necesita contexto o cálculo (la valida la API). Los casos 'valid' y los 422 cumplen el esquema.",
+  "image": {
+    "width": 1376,
+    "height": 1020
+  },
+  "valid": [
+    {
+      "id": "G-OK-1",
+      "reason": "rectángulo interior",
+      "geometry": {
+        "type": "rectangle",
+        "x": 600,
+        "y": 390,
+        "width": 100,
+        "height": 100
+      }
+    },
+    {
+      "id": "G-OK-2",
+      "reason": "triángulo",
+      "geometry": {
+        "type": "polygon",
+        "points": [
+          [
+            10,
+            10
+          ],
+          [
+            110,
+            10
+          ],
+          [
+            60,
+            90
+          ]
+        ]
+      }
+    },
+    {
+      "id": "G-OK-3",
+      "reason": "toca los bordes: x + width = W e y + height = H son válidos",
+      "geometry": {
+        "type": "rectangle",
+        "x": 1276,
+        "y": 920,
+        "width": 100,
+        "height": 100
+      }
+    },
+    {
+      "id": "G-OK-4",
+      "reason": "coordenadas con decimales",
+      "geometry": {
+        "type": "polygon",
+        "points": [
+          [
+            10.25,
+            10.5
+          ],
+          [
+            110.75,
+            10.5
+          ],
+          [
+            60.125,
+            90.875
+          ]
+        ]
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "id": "G-400-1",
+      "status": 400,
+      "type": "urn:gia:problem:validation",
+      "reason": "ancho cero",
+      "geometry": {
+        "type": "rectangle",
+        "x": 10,
+        "y": 10,
+        "width": 0,
+        "height": 5
+      }
+    },
+    {
+      "id": "G-400-2",
+      "status": 400,
+      "type": "urn:gia:problem:validation",
+      "reason": "polígono con 2 vértices",
+      "geometry": {
+        "type": "polygon",
+        "points": [
+          [
+            10,
+            10
+          ],
+          [
+            20,
+            10
+          ]
+        ]
+      }
+    },
+    {
+      "id": "G-400-3",
+      "status": 400,
+      "type": "urn:gia:problem:validation",
+      "reason": "tipo desconocido",
+      "geometry": {
+        "type": "circle",
+        "x": 10,
+        "y": 10,
+        "r": 5
+      }
+    },
+    {
+      "id": "G-400-4",
+      "status": 400,
+      "type": "urn:gia:problem:validation",
+      "reason": "coordenada negativa",
+      "geometry": {
+        "type": "polygon",
+        "points": [
+          [
+            -1,
+            10
+          ],
+          [
+            20,
+            10
+          ],
+          [
+            20,
+            30
+          ]
+        ]
+      }
+    },
+    {
+      "id": "G-400-5",
+      "status": 400,
+      "type": "urn:gia:problem:validation",
+      "reason": "coordenada como texto",
+      "geometry": {
+        "type": "rectangle",
+        "x": "10",
+        "y": 10,
+        "width": 5,
+        "height": 5
+      }
+    },
+    {
+      "id": "G-400-6",
+      "status": 400,
+      "type": "urn:gia:problem:validation",
+      "reason": "propiedad no prevista",
+      "geometry": {
+        "type": "rectangle",
+        "x": 10,
+        "y": 10,
+        "width": 5,
+        "height": 5,
+        "rotation": 45
+      }
+    },
+    {
+      "id": "G-400-7",
+      "status": 400,
+      "type": "urn:gia:problem:validation",
+      "reason": "punto con 3 componentes",
+      "geometry": {
+        "type": "polygon",
+        "points": [
+          [
+            10,
+            10,
+            0
+          ],
+          [
+            20,
+            10
+          ],
+          [
+            20,
+            30
+          ]
+        ]
+      }
+    },
+    {
+      "id": "G-422-1",
+      "status": 422,
+      "type": "urn:gia:problem:geometry-out-of-bounds",
+      "reason": "x + width > W",
+      "geometry": {
+        "type": "rectangle",
+        "x": 1300,
+        "y": 10,
+        "width": 100,
+        "height": 10
+      }
+    },
+    {
+      "id": "G-422-2",
+      "status": 422,
+      "type": "urn:gia:problem:geometry-out-of-bounds",
+      "reason": "vértice con y > H",
+      "geometry": {
+        "type": "polygon",
+        "points": [
+          [
+            10,
+            10
+          ],
+          [
+            20,
+            10
+          ],
+          [
+            20,
+            1020.5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "G-422-3",
+      "status": 422,
+      "type": "urn:gia:problem:geometry-degenerate",
+      "reason": "cierre explícito: el último punto repite el primero",
+      "geometry": {
+        "type": "polygon",
+        "points": [
+          [
+            10,
+            10
+          ],
+          [
+            110,
+            10
+          ],
+          [
+            60,
+            90
+          ],
+          [
+            10,
+            10
+          ]
+        ]
+      }
+    },
+    {
+      "id": "G-422-4",
+      "status": 422,
+      "type": "urn:gia:problem:geometry-degenerate",
+      "reason": "vértices consecutivos repetidos",
+      "geometry": {
+        "type": "polygon",
+        "points": [
+          [
+            10,
+            10
+          ],
+          [
+            110,
+            10
+          ],
+          [
+            110,
+            10
+          ],
+          [
+            60,
+            90
+          ]
+        ]
+      }
+    },
+    {
+      "id": "G-422-5",
+      "status": 422,
+      "type": "urn:gia:problem:geometry-degenerate",
+      "reason": "área cero (vértices colineales)",
+      "geometry": {
+        "type": "polygon",
+        "points": [
+          [
+            10,
+            10
+          ],
+          [
+            20,
+            20
+          ],
+          [
+            30,
+            30
+          ]
+        ]
+      }
+    },
+    {
+      "id": "G-422-6",
+      "status": 422,
+      "type": "urn:gia:problem:geometry-self-intersection",
+      "reason": "polígono en forma de moño (autointersección)",
+      "geometry": {
+        "type": "polygon",
+        "points": [
+          [
+            0,
+            0
+          ],
+          [
+            100,
+            100
+          ],
+          [
+            100,
+            0
+          ],
+          [
+            0,
+            100
+          ]
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Formato JSON interno de exportación (formatVersion 1.x)",
+  "description": "Fuente de verdad de las exportaciones: COCO y YOLO se derivan de este contenido, nunca al revés. Todas las geometrías están en coordenadas de nivel 0 (ver geometry.schema.json). Nombres en camelCase, como en la API.",
+  "type": "object",
+  "properties": {
+    "format": { "const": "gia-annotations" },
+    "formatVersion": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "exportedAt": { "type": "string", "format": "date-time" },
+    "exportedBy": { "type": "string" },
+    "filter": {
+      "type": "object",
+      "properties": {
+        "authors": {
+          "oneOf": [
+            { "const": "all" },
+            { "type": "array", "items": { "type": "integer" }, "minItems": 1 }
+          ]
+        }
+      },
+      "required": ["authors"],
+      "additionalProperties": false
+    },
+    "coordinateSystem": {
+      "type": "object",
+      "properties": {
+        "reference": { "const": "level0" },
+        "units": { "const": "px" },
+        "origin": { "const": "top-left-corner" },
+        "yAxis": { "const": "down" }
+      },
+      "required": ["reference", "units", "origin", "yAxis"],
+      "additionalProperties": false
+    },
+    "project": { "$ref": "#/$defs/named" },
+    "dataset": { "$ref": "#/$defs/named" },
+    "classes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string", "minLength": 1 },
+          "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+        },
+        "required": ["id", "name", "color"],
+        "additionalProperties": false
+      }
+    },
+    "authors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "username": { "type": "string" },
+          "kind": { "enum": ["human", "import"] }
+        },
+        "required": ["id", "username", "kind"],
+        "additionalProperties": false
+      }
+    },
+    "images": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/image" }
+    }
+  },
+  "required": ["format", "formatVersion", "exportedAt", "exportedBy", "filter", "coordinateSystem", "project", "dataset", "classes", "authors", "images"],
+  "additionalProperties": false,
+  "$defs": {
+    "named": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "name": { "type": "string" }
+      },
+      "required": ["id", "name"],
+      "additionalProperties": false
+    },
+    "image": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "storageKey": { "type": "string" },
+        "kind": { "enum": ["wsi", "conventional"] },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "mppX": { "type": ["number", "null"] },
+        "mppY": { "type": ["number", "null"] },
+        "annotations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/annotation" }
+        }
+      },
+      "required": ["id", "storageKey", "kind", "width", "height", "mppX", "mppY", "annotations"],
+      "additionalProperties": false
+    },
+    "annotation": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "classId": { "type": "integer" },
+        "authorId": { "type": "integer" },
+        "source": { "enum": ["manual", "import"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "geometry": { "$ref": "geometry.schema.json" },
+        "provenance": { "type": ["object", "null"] }
+      },
+      "required": ["id", "classId", "authorId", "source", "createdAt", "updatedAt", "geometry", "provenance"],
+      "additionalProperties": false
+    }
+  }
+}
