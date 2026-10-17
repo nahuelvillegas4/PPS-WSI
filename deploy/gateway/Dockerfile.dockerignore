@@ -1,0 +1,6 @@
+# El contexto es la raíz del repositorio; la pasarela solo necesita web/ y deploy/gateway/.
+*
+!web
+!deploy/gateway
+web/node_modules
+web/dist

@@ -1,0 +1,50 @@
+# Pasarela (Nginx)
+
+Es la única puerta del sistema: el navegador habla solo con ella, así que la cookie de sesión viaja sola a las teselas y no hay CORS que configurar ([ADR-01](../docs/adr/0001-spa-y-dos-servicios-tras-pasarela.md)). La construye la imagen de [`deploy/gateway/Dockerfile`](gateway/Dockerfile), que compila la SPA de [`web/`](../web/README.md) y la sirve junto con la configuración de Nginx.
+
+## Qué hace cada ruta
+
+| Ruta | Destino | Detalle |
+|---|---|---|
+| `/` y rutas de la SPA | Archivos estáticos | `try_files` con `index.html` como respaldo; `/assets/` se cachea sin vencimiento (nombres con hash) |
+| `/api/` | `api:8080` | Reenvía con `X-Request-ID` |
+| `/tiles/` | `tiles:8000` | Antes de reenviar pregunta a la API si hay sesión (`auth_request`) y agrega `X-Storage-Key` ([ADR-03](../docs/adr/0003-duenos-de-datos-y-resolucion.md), [ADR-04](../docs/adr/0004-sesion-y-proteccion-de-teselas.md)); descarta cualquier `X-Storage-Key` que mande el navegador |
+| `/internal/` | — | Responde 404: nunca es alcanzable desde afuera |
+
+Cada pedido recibe un `X-Request-ID` (`$request_id`) que se propaga a la API y a teselas y se devuelve al navegador.
+
+## Cómo se corre
+
+Desde la raíz del repositorio, con Docker Desktop abierto.
+
+**Con la API completa** (cuando tenga ingreso y registro de imágenes):
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+**Mientras tanto, sin ingreso** — todas las imágenes apuntan a una imagen de prueba, sin sesión ni autorización. Es solo para desarrollo y temporal ([`gateway/dev/`](gateway/dev/tiles-auth-sin-login.conf)):
+
+```bash
+python scripts/make_sample_image.py
+docker compose -f compose.yaml -f compose.dev-sin-login.yaml up -d --build
+```
+
+Abrí <http://localhost:8080/images/1>. La API queda en <http://localhost:8081/swagger> solo para desarrollo.
+
+## Dónde se toca cada cosa
+
+| Archivo | Responsabilidad |
+|---|---|
+| `gateway/nginx.conf` | Rutas, proxys y caché |
+| `gateway/snippets/security-headers.conf` | Cabeceras de seguridad y `X-Request-ID` (se incluye en cada `location` que define cabeceras propias) |
+| `gateway/snippets/tiles-auth.conf` | La autorización real de teselas con la API |
+| `gateway/dev/tiles-auth-sin-login.conf` | Reemplazo temporal de desarrollo (clave fija) |
+
+## Límites a tener presentes
+
+- **Los 401 y 403 de las teselas los genera Nginx**, con su página HTML, no con `problem+json`. La SPA ya los trata como falla de carga.
+- **`auth_request` solo admite 204, 401 y 403** de la API; cualquier otro código se convierte en un 500. El endpoint `tile-access` hoy responde 404 si la imagen no existe: el contrato define solo 204, 401 y 403, así que habría que alinearlo (módulo de la PPS 2).
+- **Pendiente:** `Content-Security-Policy` compatible con OpenSeadragon, TLS (P19) y fijar las etiquetas exactas de las imágenes base (ADR-14, `VERIFICAR`).
+- **Sin probar en contenedores todavía:** la configuración de Nginx y el Dockerfile se escribieron con Docker apagado; el `compose.yaml` se validó con `docker compose config`.
