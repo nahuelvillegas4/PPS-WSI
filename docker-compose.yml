@@ -1,0 +1,36 @@
+services:
+  pps-db:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: pps2-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: pps_annotations_db
+      POSTGRES_USER: pps_user
+      POSTGRES_PASSWORD: pps_secure_password_2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - pps_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pps_user -d pps_annotations_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  pps-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pps2-backend-api
+    restart: always
+    depends_on:
+      pps-db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=pps-db;Port=5432;Database=pps_annotations_db;Username=pps_user;Password=pps_secure_password_2026;"
+    ports:
+      - "8080:8080"
+
+volumes:
+  pps_pgdata:
