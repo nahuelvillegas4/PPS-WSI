@@ -16,7 +16,7 @@ Proyecto de Práctica Profesional Supervisada para la gestión, anotación geom�
 | [`/scripts`](scripts) | `check_contract.py`: verifica el contrato | Vigente |
 | [`/tiles`](tiles/README.md) | Servicio de teselas Deep Zoom con OpenSlide (FastAPI), PPS 1 | Implementado: DZI, teselas e `inspect` |
 | [`/web`](web/README.md) | Interfaz web (React + TypeScript + OpenSeadragon), PPS 1 | Visor de imágenes; sin ingreso ni anotaciones todavía |
-| [`/deploy`](deploy/README.md) | Pasarela Nginx de origen único ([ADR-01](docs/adr/0001-spa-y-dos-servicios-tras-pasarela.md)) | Implementada y probada en contenedores (falta el camino con sesión válida) |
+| [`/deploy`](deploy/README.md) | Pasarela Nginx de origen único ([ADR-01](docs/adr/0001-spa-y-dos-servicios-tras-pasarela.md)) | Implementada y probada en contenedores, incluido el ingreso con sesión real |
 | `compose.yaml` | Orquestación Docker Compose en la raíz ([ADR-11](docs/adr/0011-un-compose-dos-entornos.md)) | `db`, `api`, `tiles` y `gateway` |
 | `.env.example` | Plantilla de variables de entorno seguras | Configurado |
 
