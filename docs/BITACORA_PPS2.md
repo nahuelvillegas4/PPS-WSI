@@ -85,6 +85,40 @@ Las geometrías se guardan como `jsonb` en nivel 0 y la sesión es por cookie ([
 
 ---
 
+### Día 2: Autenticación, Sesión por Cookie, Gestión de Usuarios y Catálogo de Proyectos
+- **Fecha:** 20/10/2026
+- **Horas dedicadas:** 6 horas (Acumulado: 16 horas)
+- **Módulo:** Autenticación y Usuarios (Épica E2), Catálogo (Épica E3)
+- **Actividades realizadas:**
+  1. Implementación de autenticación y sesión por cookie `gia_session` conforme a ADR-04: endpoints `POST /api/v1/auth/login`, `POST /api/v1/auth/logout` y `GET /api/v1/auth/me` con verificación de contraseñas mediante PBKDF2 (`IPasswordHasher<User>`).
+  2. Implementación de protección contra ataques de fuerza bruta en memoria (`ILoginAttemptTracker` / `LoginAttemptTracker`) limitando intentos fallidos y respondiendo HTTP 429 (`urn:gia:problem:too-many-requests`).
+  3. Implementación del módulo de gestión de usuarios exclusivos para administradores (`UsersController`): listado `GET /api/v1/users`, creación `POST /api/v1/users` (sin autorregistro, validación de regex `^[a-z0-9._-]{3,64}$`, control de duplicados HTTP 409 `duplicate-name`), consulta `GET /api/v1/users/{userId}` y actualización `PATCH /api/v1/users/{userId}` con validación `minProperties: 1`.
+  4. Implementación del catálogo base de proyectos (`ProjectsController`): listado autenticado `GET /api/v1/projects`, creación por administrador `POST /api/v1/projects` con cabecera `Location` y control de duplicados (409), consulta `GET /api/v1/projects/{projectId}`, actualización `PATCH /api/v1/projects/{projectId}` y eliminación `DELETE /api/v1/projects/{projectId}` restringida si contiene datasets asociados (409 `not-empty`, ADR-07).
+  5. Despliegue y verificación integral en caliente sobre el contenedor Docker Compose `gia-api` (.NET 10 LTS) y `gia-db` (PostgreSQL 18), validando con `curl` todos los flujos de autorización por rol, expiración de cookies y respuestas RFC 9457 Problem Details con `traceId`.
+- **Entregables / Commits:**
+  - Archivos creados o modificados:
+    - `api/src/Pps.Api/Common/Security/ILoginAttemptTracker.cs`
+    - `api/src/Pps.Api/Common/Security/LoginAttemptTracker.cs`
+    - `api/src/Pps.Api/Common/Errors/GiaExceptions.cs`
+    - `api/src/Pps.Api/Program.cs`
+    - `api/src/Pps.Api/Controllers/Auth/AuthController.cs`
+    - `api/src/Pps.Api/Controllers/Auth/Dtos/LoginRequest.cs`
+    - `api/src/Pps.Api/Controllers/Auth/Dtos/CurrentUserResponse.cs`
+    - `api/src/Pps.Api/Controllers/Users/UsersController.cs`
+    - `api/src/Pps.Api/Controllers/Users/Dtos/UserResponse.cs`
+    - `api/src/Pps.Api/Controllers/Users/Dtos/CreateUserRequest.cs`
+    - `api/src/Pps.Api/Controllers/Users/Dtos/UpdateUserRequest.cs`
+    - `api/src/Pps.Api/Controllers/Catalog/ProjectsController.cs`
+    - `api/src/Pps.Api/Controllers/Catalog/Dtos/ProjectResponse.cs`
+    - `api/src/Pps.Api/Controllers/Catalog/Dtos/ProjectInput.cs`
+    - `api/src/Pps.Api/Controllers/Catalog/Dtos/ProjectPatch.cs`
+    - `docs/BITACORA_PPS2.md`
+- **Dificultades y soluciones:**
+  - El contrato requería que los cuerpos parciales en `PATCH` contuvieran al menos una propiedad (`minProperties: 1`). Se implementó `IValidatableObject` en los DTOs para integrarse nativamente con el factory de Problem Details RFC 9457 de ASP.NET Core.
+- **Estado:** Completado.
+
+---
+
 ### Plantilla de Registro para los Siguientes Días (Semana 1 en adelante)
 
 ```markdown
