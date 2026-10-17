@@ -1,0 +1,7 @@
+# SOLO DESARROLLO Y TEMPORAL: ver teselas antes de que la API tenga ingreso e imágenes registradas.
+# Reemplaza la autorización de teselas por una clave fija (ver deploy/gateway/dev/).
+#   docker compose -f compose.yaml -f compose.dev-sin-login.yaml up -d --build
+services:
+  gateway:
+    volumes:
+      - ./deploy/gateway/dev/tiles-auth-sin-login.conf:/etc/nginx/gateway/tiles-auth.conf:ro
