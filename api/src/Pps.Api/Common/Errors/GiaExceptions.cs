@@ -24,6 +24,30 @@ public abstract class GiaProblemException : Exception
     }
 }
 
+public class UnauthenticatedProblemException : GiaProblemException
+{
+    public UnauthenticatedProblemException(string detail = "No valid session found. Please log in.", string slug = "unauthenticated")
+        : base(
+            problemType: $"{GiaProblemTypes.Prefix}{slug}",
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Unauthorized",
+            detail: detail)
+    {
+    }
+}
+
+public class TooManyRequestsProblemException : GiaProblemException
+{
+    public TooManyRequestsProblemException(string detail = "Too many failed login attempts. Please try again later.", string slug = "too-many-requests")
+        : base(
+            problemType: $"{GiaProblemTypes.Prefix}{slug}",
+            statusCode: StatusCodes.Status429TooManyRequests,
+            title: "Too Many Requests",
+            detail: detail)
+    {
+    }
+}
+
 public class NotFoundProblemException : GiaProblemException
 {
     public NotFoundProblemException(string detail, string slug = "not-found")
