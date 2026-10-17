@@ -1,5 +1,27 @@
 # Propuesta de Contrato de Integración: PPS 1 (Visor WSI) y PPS 2 (Backend Anotaciones)
 
+> **Estado: propuesta inicial, superada por [`contract/`](../contract/README.md) (v0.1.0).** El principio rector se mantiene (coordenadas de nivel 0). Rutas, identificadores y formato de geometría cambiaron. Si este texto y `contract/` difieren, manda `contract/`. Lo que sigue a la tabla es el texto original, sin modificar.
+
+## Equivalencias con el contrato vigente
+
+| Tema | Esta propuesta | Contrato vigente (`contract/`) |
+|---|---|---|
+| Coordenadas | Nivel 0, píxeles reales de máxima resolución | Igual: nivel 0 con decimales, origen arriba a la izquierda ([ADR-06](adr/0006-geometrias-y-coordenadas.md)). El servidor valida y rechaza, nunca transforma |
+| Prefijo de rutas | `/api/...` | `/api/v1/...`, con `/tiles/v1/...` para el servicio de teselas |
+| Identificadores | Cadenas (`wsi-uuid-1234`, `anno-uuid-5678`) | Enteros |
+| Metadatos de imagen | PPS 1 informa `imageId`, `filename`, `level0Width`, `level0Height`, `dziUrl`, `mppX`, `mppY` | La API consulta al servicio de teselas (`GET /internal/v1/inspect`) y expone `GET /api/v1/images/{imageId}` con `name`, `width`, `height` (nivel 0), `mppX`, `mppY` y `tileSourceUrl` (`/tiles/v1/images/{id}.dzi`) |
+| Clases | `colorHex` | `color` (`#RRGGBB`) y `displayOrder` |
+| Filtro por revisor | `?userId={id}` | `?author=me` (por defecto), `all` o el id de un usuario |
+| Geometría | `geometryType: "Polygon"` con `coordinates` y anillo cerrado; el rectángulo como polígono de 4 vértices o `BoundingBox` | `geometry` con `{"type":"rectangle","x","y","width","height"}` o `{"type":"polygon","points":[[x,y],…]}`. **No se repite el primer vértice**: el cierre explícito se rechaza con 422 |
+| Modificar | `PUT /api/annotations/{id}` | `PATCH /api/v1/annotations/{annotationId}` con `If-Match` (428 si falta, 412 si no coincide) |
+| Borrar | «soft delete o hard delete» | Borrado lógico, respuesta 204 |
+| Autor y fechas | Vienen en el cuerpo de la anotación | Los pone el servidor; enviarlos en el cuerpo es un 400 |
+| Campos extra | `className`, `properties` (`confidence`, `comments`) | Fuera de v0.1: la anotación lleva `classId`, `source`, `version` y `authorUsername`; el nombre de la clase se resuelve con `GET /api/v1/datasets/{datasetId}/classes` |
+
+---
+
+## Texto original de la propuesta
+
 Este documento establece el contrato técnico y de interfaces entre el módulo de visualización WSI (PPS 1) y el módulo de gestión, persistencia e interoperabilidad de datasets y anotaciones (PPS 2).
 
 ---

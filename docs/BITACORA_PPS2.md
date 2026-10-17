@@ -1,10 +1,28 @@
 # Bitácora de Práctica Profesional Supervisada (PPS 2)
 **Proyecto:** Gestión, anotación e interoperabilidad de datasets de imágenes médicas  
 **Estudiante:** Nahuel  
-**Carga horaria total requerida:** 200 horas (40 días hábiles de 5 horas aprox.)  
-**Repositorio y entorno:** .NET 8 (C#), PostgreSQL / PostGIS, Docker & Docker Compose  
+**Carga horaria total requerida:** 200 horas (40 días hábiles de 5 horas aprox.) — *a confirmar: la arquitectura ([§2.2](arquitectura/01-introduccion-y-restricciones.md)) indica 6 h por día del 19/10 al 03/12/2026; ver [ALINEACION_SCAFFOLDING_PPS2.md](ALINEACION_SCAFFOLDING_PPS2.md)*  
+**Repositorio y entorno:** ASP.NET Core (C#), PostgreSQL, Docker & Docker Compose. Versiones y decisiones en la [línea base de arquitectura](arquitectura/README.md); diferencias con el scaffolding inicial en [ALINEACION_SCAFFOLDING_PPS2.md](ALINEACION_SCAFFOLDING_PPS2.md)  
 
 ---
+
+## Estructura General del Plan de Trabajo
+
+Plan alineado con los incrementos de la [arquitectura (§13)](arquitectura/06-organizacion-y-roadmap.md): el orden es fijo y las duraciones son indicativas. La semana 1 empieza el lunes 19/10/2026. Cada incremento termina con algo demostrable sobre el Compose integrado.
+
+| Semana | Incremento | Eje principal (PPS 2) | Hito demostrable |
+|---|---|---|---|
+| **0** (Prep, 4 h) | — | Relevamiento, selección de stack, arquitectura y scaffolding Docker + .NET | Entorno inicial y Bitácora |
+| **1** (19/10) | I0 · Base | Repositorio, CI y Compose con los cuatro servicios en versión «hola mundo»; contrato v0.1 acordado; scaffolding de la API alineado con la línea base | `docker compose up` desde cero en las dos máquinas; CI en verde |
+| **2–3** (26/10 y 02/11) | I1 · Esqueleto de punta a punta | Ingreso por cookie, usuarios, proyectos, datasets y clases; registro de una PNG; rectángulo persistido en nivel 0; exportación del JSON interno | `smoke.sh` recorre el camino completo en la CI |
+| **3–4** (02/11 y 09/11) | I2 · WSI, polígonos y conjuntos | Registro de WSI por el mismo camino; polígonos; clases por dataset; conjuntos por usuario (403 sobre anotaciones ajenas); contrato 1.0 | Anotación en WSI persistida en nivel 0; QS-1 a QS-4 y QS-8 medidos |
+| **5–6** (16/11 y 23/11) | I3 · Edición, importación y exportación | Importación de CRIC con `dryRun` (CCEDD queda como extensión); exportación COCO (YOLO solo si sobra tiempo); ensayo de aceptación | Guion de aceptación de la PPS 2 de punta a punta en una instalación limpia |
+| **7** (30/11) | I4 · Aceptación de la PPS 2 | Correcciones, manuales de API, importación y exportación; API congelada y documentada; traspaso de conocimiento | Aceptación de PPS 2 §7; cierre previsto el 03/12 |
+
+Las geometrías se guardan como `jsonb` en nivel 0 y la sesión es por cookie ([ADR-04](adr/0004-sesion-y-proteccion-de-teselas.md), [ADR-07](adr/0007-modelo-de-datos-y-autoria.md)). El canvas de prueba sobre JPG/PNG lo cubre el `SimpleImageViewer` de la PPS 1 ([ADR-08](adr/0008-frontera-y-reparto-del-editor.md)).
+
+<details>
+<summary>Cronograma inicial del Día 0 (reemplazado por el plan de arriba; se conserva como registro)</summary>
 
 ## Estructura General del Plan de Trabajo (40 Días)
 
@@ -19,6 +37,8 @@
 | **Semana 6** | Días 26 al 30 | Integración con PPS 1 (OpenSeadragon + visor WSI y capa de anotaciones) | Flujo integrado WSI + Anotaciones en navegador |
 | **Semana 7** | Días 31 al 35 | Pruebas integrales, casos extremos, rendimiento de polígonos y validación de criterios | Suite de pruebas automatizadas y validación con datos reales |
 | **Semana 8** | Días 36 al 40 | Empaquetado final Docker Compose, documentación técnica, manuales y entrega | Entrega final completa y defensa |
+
+</details>
 
 ---
 
@@ -38,6 +58,7 @@
   - `BITACORA_PPS2.md` con planificación detallada.
   - Estructura base del repositorio con Docker Compose y API .NET.
 - **Estado:** Completado.
+- **Nota (17/10/2026):** el plan se alineó con la línea base de arquitectura acordada por los dos (cookie en lugar de JWT, `jsonb` en lugar de PostGIS y NetTopologySuite, .NET 10 y PostgreSQL 18). Falta aplicarlo al código del scaffolding; el detalle está en [ALINEACION_SCAFFOLDING_PPS2.md](ALINEACION_SCAFFOLDING_PPS2.md).
 
 ---
 
