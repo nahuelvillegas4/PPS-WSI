@@ -1,8 +1,8 @@
 # Bitácora de Práctica Profesional Supervisada (PPS 2)
 **Proyecto:** Gestión, anotación e interoperabilidad de datasets de imágenes médicas  
 **Estudiante:** Nahuel  
-**Carga horaria total requerida:** 200 horas (40 días hábiles de 5 horas aprox.) — *a confirmar: la arquitectura ([§2.2](arquitectura/01-introduccion-y-restricciones.md)) indica 6 h por día del 19/10 al 03/12/2026; ver [ALINEACION_SCAFFOLDING_PPS2.md](ALINEACION_SCAFFOLDING_PPS2.md)*  
-**Repositorio y entorno:** ASP.NET Core (C#), PostgreSQL, Docker & Docker Compose. Versiones y decisiones en la [línea base de arquitectura](arquitectura/README.md); diferencias con el scaffolding inicial en [ALINEACION_SCAFFOLDING_PPS2.md](ALINEACION_SCAFFOLDING_PPS2.md)  
+**Carga horaria total requerida:** 200 horas (7 semanas de 6 horas por día, del 19/10/2026 al 03/12/2026) — *Confirmado según la línea base de arquitectura ([§2.2](arquitectura/01-introduccion-y-restricciones.md))*  
+**Repositorio y entorno:** ASP.NET Core (C#), PostgreSQL 18, Docker & Docker Compose (`compose.yaml`). Versiones y decisiones en la [línea base de arquitectura](arquitectura/README.md); alineación del scaffolding completada según [ALINEACION_SCAFFOLDING_PPS2.md](ALINEACION_SCAFFOLDING_PPS2.md)  
 
 ---
 
@@ -58,7 +58,30 @@ Las geometrías se guardan como `jsonb` en nivel 0 y la sesión es por cookie ([
   - `BITACORA_PPS2.md` con planificación detallada.
   - Estructura base del repositorio con Docker Compose y API .NET.
 - **Estado:** Completado.
-- **Nota (17/10/2026):** el plan se alineó con la línea base de arquitectura acordada por los dos (cookie en lugar de JWT, `jsonb` en lugar de PostGIS y NetTopologySuite, .NET 10 y PostgreSQL 18). Falta aplicarlo al código del scaffolding; el detalle está en [ALINEACION_SCAFFOLDING_PPS2.md](ALINEACION_SCAFFOLDING_PPS2.md).
+- **Nota (17/10/2026):** el plan se alineó con la línea base de arquitectura acordada por los dos y se aplicó al código del scaffolding: carpeta renombrada a `api/`, `compose.yaml` en la raíz, cookie `gia_session` con Data Protection, eliminación de JWT y NetTopologySuite, y base PostgreSQL 18 estándar con `jsonb`.
+- **Régimen acordado:** 7 semanas de 6 horas por día (cierre el 03/12/2026).
+
+---
+
+### Día 1: Scaffolding, Persistencia PostgreSQL 18, Migración a .NET 10 y Verificación Docker Compose
+- **Fecha:** 19/10/2026
+- **Horas dedicadas:** 6 horas (Acumulado: 10 horas)
+- **Módulo:** Infraestructura, Persistencia, Observabilidad y Scaffolding Base
+- **Actividades realizadas:**
+  1. Alineación estructural del scaffolding: migración y renombre de carpeta `backend/` a `api/`, migración del stack completo a **.NET 10 LTS** (SDK 10.0.402, EF Core 10.0.13, Npgsql 10.0.3) y Dockerfile multi-stage con runtime ASP.NET Core 10 y `curl`.
+  2. Implementación de entidades de dominio en `Pps.Domain` respetando la vertical modular: `User`, `Project`, `Dataset`, `LabelClass`, `MedicalImage`, `Annotation` (con polígonos GeoJSON en `jsonb` y control de concurrencia optimista `xmin`), `IAnnotationImporter` e `IExporter`.
+  3. Configuración de persistencia en `AppDbContext` (PostgreSQL 18 estándar, sin extensiones PostGIS), mapeo snake_case, claves foráneas compuestas `(dataset_id, class_id)` y `(dataset_id, image_id)`, soft-delete global y migración inicial `InitialCreate`.
+  4. Implementación del inicializador de base de datos (`DatabaseInitializer`) con aplicación automática de migraciones pendientes y seeding del usuario administrador inicial con PBKDF2 (`Microsoft.Extensions.Identity.Core`).
+  5. Implementación de endpoints de operaciones y salud: `GET /health/live` (liveness 200) y `GET /health/ready` (readiness con ping a base de datos PostgreSQL, 200/503), alineados con OpenAPI y healthchecks de Docker Compose.
+  6. Estandarización de errores bajo RFC 9457 Problem Details (`GiaExceptionHandler`, `urn:gia:problem:<slug>`) y trazabilidad de extremo a extremo mediante `TraceIdMiddleware` (`X-Request-ID` propagado como `traceId`).
+  7. Implementación del endpoint interno de autorización de teselas `GET /internal/v1/tile-access` (ADR-06) con resolución de ruta `X-Original-URI`, validación de `storage_key` y cabecera de respuesta `X-Storage-Key`.
+  8. Unificación y verificación en la raíz del repositorio con `compose.yaml` levantando los servicios `gia-db` (`postgres:18`) y `gia-api` (`pps-api:latest`), validando healthchecks, conectividad HTTP, Swagger y contratos de error.
+- **Entregables / Commits:**
+  - Archivos creados o modificados: `compose.yaml`, `.env.example`, `api/Dockerfile`, `Pps.Domain/*`, `Pps.Infrastructure/Persistence/*`, `Pps.Api/*`.
+- **Dificultades y soluciones:**
+  - La sincronización de concurrencia en PostgreSQL con EF Core 10 requirió mapear el token optimista directamente a la columna de sistema `xmin` mediante `IsRowVersion()`.
+  - La instalación de .NET 10 en Windows requirió configurar la variable de entorno `DOTNET_ROOT` para las herramientas globales como `dotnet-ef`.
+- **Estado:** Completado.
 
 ---
 
@@ -67,7 +90,7 @@ Las geometrías se guardan como `jsonb` en nivel 0 y la sesión es por cookie ([
 ```markdown
 ### Día X: [Título breve de la jornada]
 - **Fecha:** DD/MM/AAAA
-- **Horas dedicadas:** 5 horas (Acumulado: Y horas)
+- **Horas dedicadas:** 6 horas (Acumulado: Y horas)
 - **Módulo:** [Arquitectura / Dominio / Base de Datos / Anotaciones / Importación / etc.]
 - **Actividades realizadas:**
   1. ...
@@ -79,3 +102,4 @@ Las geometrías se guardan como `jsonb` en nivel 0 y la sesión es por cookie ([
   - ...
 - **Estado:** [En progreso / Completado]
 ```
+

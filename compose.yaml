@@ -1,0 +1,61 @@
+# Compose integrado (ADR-11, arquitectura §7.1)
+services:
+  db:
+    image: postgres:18
+    container_name: gia-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gia_db}
+      POSTGRES_USER: ${POSTGRES_USER:-gia_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gia_dev_password_change_me}
+      PGDATA: /var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: gia-api
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+    env_file:
+      - .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=${POSTGRES_DB:-gia_db};Username=${POSTGRES_USER:-gia_user};Password=${POSTGRES_PASSWORD:-gia_dev_password_change_me};"
+      DATA_PROTECTION_KEYS_PATH: ${DATA_PROTECTION_KEYS_PATH:-/keys}
+    ports:
+      - "${API_PORT:-8080}:8080"
+    volumes:
+      - ${IMAGES_DIR:-./data/images}:/data/images:ro
+      - dpkeys:/keys
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+# Los servicios gateway (Nginx) y tiles (FastAPI + OpenSlide) se incorporan en I0 por PPS 1
+# gateway:
+#   build: { context: ., dockerfile: deploy/gateway/Dockerfile }
+#   ports: ["${HTTP_PORT:-8080}:80"]
+#   depends_on:
+#     api: { condition: service_healthy }
+#     tiles: { condition: service_healthy }
+# tiles:
+#   build: ./tiles
+#   volumes: ["${IMAGES_DIR:-./data/images}:/data/images:ro"]
+
+volumes:
+  pgdata:
+  dpkeys:

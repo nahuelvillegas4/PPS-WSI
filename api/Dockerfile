@@ -1,5 +1,5 @@
-# Etapa 1: Build y compilación con el SDK completo de .NET 8
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+# Etapa 1: Build y compilación con el SDK completo de .NET 10
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /app
 
 # Copiar archivos de solución y proyectos para optimizar el caché de capas de Docker
@@ -15,13 +15,13 @@ COPY src/ src/
 WORKDIR /app/src/Pps.Api
 RUN dotnet publish -c Release -o /app/out --no-restore
 
-# Etapa 2: Runtime ligero de ASP.NET Core 8
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+# Etapa 2: Runtime ligero de ASP.NET Core 10 con curl para healthcheck (§7.1)
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app/out ./
 
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
-ENV ASPNETCORE_ENVIRONMENT=Development
 
 ENTRYPOINT ["dotnet", "Pps.Api.dll"]
