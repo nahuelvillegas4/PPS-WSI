@@ -19,9 +19,6 @@ bld/
 [Bb]in/
 [Oo]bj/
 
-## Docker
-.dockerignore
-
 ## OS generated
 .DS_Store
 Thumbs.db

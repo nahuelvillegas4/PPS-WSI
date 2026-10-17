@@ -1,0 +1,8 @@
+**/.git
+**/.vs
+**/.vscode
+**/bin
+**/obj
+**/*.log
+BITACORA_PPS2.md
+*.pdf
