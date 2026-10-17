@@ -22,3 +22,7 @@ bld/
 ## OS generated
 .DS_Store
 Thumbs.db
+
+## Local configuration and data (ADR-12, architecture 12.1)
+.env
+/data/
