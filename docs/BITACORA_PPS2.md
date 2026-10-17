@@ -119,6 +119,48 @@ Las geometrías se guardan como `jsonb` en nivel 0 y la sesión es por cookie ([
 
 ---
 
+### Día 3: Cierre de la Épica E3 — Catálogo de Datasets y Clases de Etiquetado
+- **Fecha:** 21/10/2026
+- **Horas dedicadas:** 6 horas (Acumulado: 22 horas)
+- **Módulo:** Catálogo (Épica E3 — Datasets y Clases de Etiquetado)
+- **Actividades realizadas:**
+  1. Implementación del módulo de gestión de datasets (`DatasetsController`) alineado con OpenAPI (`api.v1.yaml`) y ADR-07: listado por proyecto `GET /api/v1/projects/{projectId}/datasets` (con validación de existencia de proyecto HTTP 404), creación por administrador `POST /api/v1/projects/{projectId}/datasets` (`201 Created` con cabecera `Location` y control de duplicados `409 duplicate-name` dentro del proyecto), consulta `GET /api/v1/datasets/{datasetId}`, actualización parcial `PATCH /api/v1/datasets/{datasetId}` (`minProperties: 1` mediante `IValidatableObject`) y eliminación `DELETE /api/v1/datasets/{datasetId}` restringida con `409 not-empty` si posee imágenes registradas.
+  2. Implementación del módulo de gestión de clases de etiquetado (`ClassesController`): listado `GET /api/v1/datasets/{datasetId}/classes` ordenado estrictamente por `displayOrder` y luego por `id`, creación por administrador `POST /api/v1/datasets/{datasetId}/classes` con validación de color hexadecimal (`^#[0-9a-fA-F]{6}$`), cabecera `Location` y control de nombres duplicados en el dataset (`409 duplicate-name`), actualización parcial `PATCH /api/v1/classes/{classId}` y eliminación `DELETE /api/v1/classes/{classId}` restringida con `409 class-in-use` si existen anotaciones (activas o con borrado lógico) asociadas a la clase.
+  3. Configuración de validación estricta de esquemas JSON (`JsonUnmappedMemberHandling.Disallow`) en `Program.cs` para cumplir con `additionalProperties: false` en todos los cuerpos de entrada (§8.5), rechazando propiedades no previstas con HTTP 400 (`urn:gia:problem:validation`), y ajuste de los tipos URN en `GiaProblemTypes` (`unsupported-media-type` para 415 e `internal` para 500).
+  4. Reconstrucción de la imagen Docker `pps-api:latest` sobre `compose.yaml` y verificación de integración de punta a punta sobre los contenedores `gia-api` y `gia-db`.
+- **Entregables / Commits:**
+  - Archivos creados o modificados:
+    - `api/src/Pps.Api/Controllers/Catalog/DatasetsController.cs`
+    - `api/src/Pps.Api/Controllers/Catalog/Dtos/DatasetResponse.cs`
+    - `api/src/Pps.Api/Controllers/Catalog/Dtos/DatasetInput.cs`
+    - `api/src/Pps.Api/Controllers/Catalog/Dtos/DatasetPatch.cs`
+    - `api/src/Pps.Api/Controllers/Catalog/ClassesController.cs`
+    - `api/src/Pps.Api/Controllers/Catalog/Dtos/LabelClassResponse.cs`
+    - `api/src/Pps.Api/Controllers/Catalog/Dtos/LabelClassInput.cs`
+    - `api/src/Pps.Api/Controllers/Catalog/Dtos/LabelClassPatch.cs`
+    - `api/src/Pps.Api/Common/Errors/GiaProblemTypes.cs`
+    - `api/src/Pps.Api/Program.cs`
+    - `docs/BITACORA_PPS2.md`
+- **Dificultades y soluciones:**
+  - Se configuró `JsonUnmappedMemberHandling.Disallow` en `System.Text.Json` para garantizar que cualquier propiedad ajena al contrato OpenAPI dispare automáticamente el `InvalidModelStateResponseFactory` con formato RFC 9457 Problem Details.
+  - En la eliminación de clases (`DELETE /api/v1/classes/{classId}`), se utilizó `IgnoreQueryFilters()` al verificar anotaciones asociadas para contemplar también las anotaciones con borrado lógico (`deleted_at != null`) que mantienen la restricción de integridad referencial en PostgreSQL.
+- **Estado:** Completado (Incremento I0 y Épicas E2 y E3 100% cerradas del lado de PPS 2).
+
+---
+
+### Día 4 (Planificado para la próxima jornada): Épica E4 — Exploración de Almacenamiento y Registro de Imágenes
+- **Fecha prevista:** 22/10/2026
+- **Módulo:** Almacenamiento y Registro de Imágenes (Épica E4, avance Incremento I1)
+- **Tareas a realizar:**
+  1. Implementar `GET /api/v1/storage/files?prefix=` (`StorageController`, solo `admin`) para listar los archivos disponibles en el volumen `/data/images`, clasificando `kind` (`wsi`, `conventional`, `other`), informando `registeredInDatasets` y validando seguridad de rutas contra path traversal (`422 invalid-storage-key`).
+  2. Definir e implementar `IImageInspector` (cliente HTTP hacia `GET /internal/v1/inspect?storageKey=` del servicio `tiles` con propagación de `X-Request-ID`, manejo de `503 dependency-unavailable` / `415 unsupported-image-format` / `404 file-not-found`, más doble de prueba/fallback local según §12.8 para avanzar sin bloqueo mientras no esté levantado `tiles`).
+  3. Implementar `GET /api/v1/datasets/{datasetId}/images` (listado paginado con `page`, `pageSize` y `total`) y `POST /api/v1/datasets/{datasetId}/images` (registro atómico de lotes `storageKeys`, control de `409 already-registered` en el mismo dataset y persistencia de dimensiones de nivel 0 `width`, `height`, `levelCount`, `mppX`, `mppY`).
+  4. Implementar `GET /api/v1/images/{imageId}` incluyendo la construcción de `tileSourceUrl` (`/tiles/v1/images/{imageId}.dzi`).
+  5. Verificar todos los casos sobre Docker Compose y registrar resultados en la bitácora.
+- **Estado:** Pendiente (Próxima jornada).
+
+---
+
 ### Plantilla de Registro para los Siguientes Días (Semana 1 en adelante)
 
 ```markdown

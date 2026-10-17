@@ -25,6 +25,9 @@ public static class GiaProblemTypes
     public const string VersionMismatch = "urn:gia:problem:version-mismatch";
     public const string PreconditionRequired = "urn:gia:problem:precondition-required";
 
+    // 415
+    public const string UnsupportedMediaType = "urn:gia:problem:unsupported-media-type";
+
     // 422
     public const string GeometryOutOfBounds = "urn:gia:problem:geometry-out-of-bounds";
     public const string GeometryDegenerate = "urn:gia:problem:geometry-degenerate";
@@ -41,7 +44,7 @@ public static class GiaProblemTypes
     public const string DependencyUnavailable = "urn:gia:problem:dependency-unavailable";
 
     // 500
-    public const string InternalServerError = "urn:gia:problem:internal-server-error";
+    public const string InternalServerError = "urn:gia:problem:internal";
 
     public static string ForStatus(int statusCode) => statusCode switch
     {
@@ -51,6 +54,7 @@ public static class GiaProblemTypes
         404 => NotFound,
         409 => "urn:gia:problem:conflict",
         412 => VersionMismatch,
+        415 => UnsupportedMediaType,
         428 => PreconditionRequired,
         422 => "urn:gia:problem:unprocessable-entity",
         429 => TooManyRequests,

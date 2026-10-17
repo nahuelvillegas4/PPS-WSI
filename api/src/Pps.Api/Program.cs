@@ -102,8 +102,12 @@ builder.Services.AddProblemDetails(options =>
     };
 });
 
-// 5. Controladores con validación estricta y formato RFC 9457
+// 5. Controladores con validación estricta (additionalProperties: false) y formato RFC 9457
 builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow;
+    })
     .ConfigureApiBehaviorOptions(options =>
     {
         options.InvalidModelStateResponseFactory = context =>
