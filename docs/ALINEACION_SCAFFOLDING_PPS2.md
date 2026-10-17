@@ -8,7 +8,7 @@ No se borró contenido de Nahuel: los documentos que describen el estado actual 
 
 ## 1. Diferencias en código y configuración
 
-Dueño: Nahuel (módulo `api/`, [ADR-13](adr/0013-repositorio-unico.md)). Momento natural: el incremento I0 ([roadmap §13](arquitectura/06-organizacion-y-roadmap.md)). Esta rama no cambia código: aquí no hay SDK de .NET para verificar el build.
+Dueño: Nahuel (módulo `api/`, [ADR-13](adr/0013-repositorio-unico.md)). Se aplicó en el commit `ebcb4b4` (Día 1, 17/10/2026), dentro del incremento I0 ([roadmap §13](arquitectura/06-organizacion-y-roadmap.md)); la última columna registra el resultado.
 
 | # | Tema | Scaffolding anterior | Línea base | Estado tras Día 1 |
 |---|---|---|---|---|
@@ -32,7 +32,7 @@ Dueño: Nahuel (módulo `api/`, [ADR-13](adr/0013-repositorio-unico.md)). Moment
 | [`BITACORA_PPS2.md`](BITACORA_PPS2.md) | Plan alineado con los incrementos I0 a I4. El cronograma original se conserva plegado y la entrada del Día 0 no se tocó |
 | [`BITACORA_PPS1.md`](BITACORA_PPS1.md) | Nueva, con el mismo formato y el plan de la PPS 1. Sin entradas: las completa quien trabajó cada jornada |
 | [`../README.md`](../README.md) | Los enlaces absolutos a `c:/Users/nahue/...` (rotos para cualquier otra máquina) pasaron a relativos; se agregó el mapa de carpetas y el aviso de línea base |
-| [`../backend/README.md`](../backend/README.md) | Aviso de estado y tabla «hoy / línea base» en lugar de afirmar un stack distinto del acordado |
+| [`../api/README.md`](../api/README.md) | Reemplazó a `backend/README.md` al renombrar la carpeta. La versión anterior llevaba un aviso de estado y una tabla «hoy / línea base»; ya no hacen falta porque el código quedó alineado |
 | [`../.gitignore`](../.gitignore) | Se agregaron `.env` y `/data/` ([ADR-12](adr/0012-privacidad-y-datos-de-prueba.md), [§12.1](arquitectura/06-organizacion-y-roadmap.md)) |
 
 `docs/arquitectura/`, `docs/adr/` y `contract/` no se modificaron: son la referencia.
