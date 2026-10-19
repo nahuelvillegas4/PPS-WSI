@@ -28,3 +28,12 @@ Thumbs.db
 /data/
 keys/
 **/keys/
+
+## Node / Python tooling
+node_modules/
+dist/
+.venv/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
