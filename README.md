@@ -14,9 +14,11 @@ Proyecto de Práctica Profesional Supervisada para la gestión, anotación geom�
 | [`/docs`](docs) | Documentación del proyecto y requerimientos académicos (detalle abajo) | Vigente |
 | [`/contract`](contract) | Contrato de integración versionado: OpenAPI, JSON Schema y casos numéricos | Vigente (v0.1.0) |
 | [`/scripts`](scripts) | `check_contract.py`: verifica el contrato | Vigente |
-| `compose.yaml` | Orquestación Docker Compose en la raíz ([ADR-11](docs/adr/0011-un-compose-dos-entornos.md)) | Configurado con `db` y `api` |
+| [`/tiles`](tiles/README.md) | Servicio de teselas Deep Zoom con OpenSlide (FastAPI), PPS 1 | Implementado: DZI, teselas e `inspect` |
+| [`/web`](web/README.md) | Interfaz web (React + TypeScript + OpenSeadragon), PPS 1 | Visor de imágenes; sin ingreso ni anotaciones todavía |
+| [`/deploy`](deploy/README.md) | Pasarela Nginx de origen único ([ADR-01](docs/adr/0001-spa-y-dos-servicios-tras-pasarela.md)) | Implementada y probada en contenedores, incluido el ingreso con sesión real |
+| `compose.yaml` | Orquestación Docker Compose en la raíz ([ADR-11](docs/adr/0011-un-compose-dos-entornos.md)) | `db`, `api`, `tiles` y `gateway` |
 | `.env.example` | Plantilla de variables de entorno seguras | Configurado |
-| `tiles/`, `web/`, `deploy/` | Servicio de teselas, SPA y pasarela ([ADR-13](docs/adr/0013-repositorio-unico.md)) | Se crean en I0 (PPS 1) |
 
 ### Documentación en [`/docs`](docs)
 
@@ -29,16 +31,22 @@ Proyecto de Práctica Profesional Supervisada para la gestión, anotación geom�
 
 ---
 
-## 🚀 Inicio Rápido (API + PostgreSQL)
+## 🚀 Inicio Rápido
 
-Levantar la API y la base de datos PostgreSQL estándar mediante Docker Compose desde la raíz:
+Con Docker Desktop abierto, desde la raíz del repositorio:
 
 ```powershell
 # 1. Crear .env a partir de la plantilla (si no existe)
 cp .env.example .env
 
-# 2. Levantar los contenedores
-docker compose up -d --build
+# 2. Generar la imagen de prueba (queda en data/images/samples/, ignorada por Git)
+python scripts/make_sample_image.py
+
+# 3. Levantar todo. La variante «sin login» es temporal: la API todavía no tiene ingreso
+docker compose -f compose.yaml -f compose.dev-sin-login.yaml up -d --build
 ```
 
-Documentación interactiva Swagger: [http://localhost:8080/swagger](http://localhost:8080/swagger)
+- **Visor:** [http://localhost:8080/images/1](http://localhost:8080/images/1)
+- **Swagger de la API** (solo desarrollo): [http://localhost:8081/swagger](http://localhost:8081/swagger)
+
+El puerto 8080 es de la pasarela; la API pasó al 8081 para no chocar con ella. Detalles en [`deploy/README.md`](deploy/README.md).

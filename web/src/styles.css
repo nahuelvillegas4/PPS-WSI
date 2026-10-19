@@ -1,0 +1,199 @@
+:root {
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --text: #1f2933;
+  --muted: #616e7c;
+  --border: #cbd2d9;
+  --accent: #0f766e;
+  --danger: #b42318;
+  --warning: #8a5a00;
+  color-scheme: light dark;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  color: var(--text);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12181f;
+    --surface: #1b242d;
+    --text: #e4e7eb;
+    --muted: #9aa5b1;
+    --border: #3e4c59;
+    --accent: #3cc4b3;
+    --danger: #ff8f84;
+    --warning: #f0c36d;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.home {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 3rem 1rem;
+}
+
+.home form {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.home label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: var(--muted);
+}
+
+.home input {
+  width: 9rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.viewer-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.toolbar h1 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.viewer-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: #0b0f13;
+}
+
+.viewer-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.notice {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: min(36rem, 90%);
+  margin: 0;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.notice-error {
+  border-color: var(--danger);
+}
+
+.notice-error strong {
+  color: var(--danger);
+}
+
+.notice-warning {
+  border-color: var(--warning);
+}
+
+.hud {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.hud div {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.hud dt {
+  color: var(--muted);
+}
+
+.hud dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The page shows its own error banner; hide OpenSeadragon's English duplicate message.
+ * It sets `display: table` inline, hence !important.
+ */
+.openseadragon-message {
+  display: none !important;
+}

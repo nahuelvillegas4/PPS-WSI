@@ -29,31 +29,32 @@ public class TileAccessController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> CheckTileAccess(
         [FromHeader(Name = "X-Original-URI")] string? originalUri,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(originalUri))
         {
-            return NoContent();
+            return Forbid();
         }
 
         var match = ImageIdRegex.Match(originalUri);
-        if (match.Success && long.TryParse(match.Groups["id"].Value, out var imageId))
+        if (!match.Success || !long.TryParse(match.Groups["id"].Value, out var imageId))
         {
-            var image = await _dbContext.Images
-                .AsNoTracking()
-                .FirstOrDefaultAsync(i => i.Id == imageId, cancellationToken);
-
-            if (image == null)
-            {
-                return NotFound();
-            }
-
-            // Todo usuario autenticado puede ver todas las imágenes en v0.1 (§8.4)
-            Response.Headers["X-Storage-Key"] = image.StorageKey;
+            return Forbid();
         }
+
+        var image = await _dbContext.Images
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.Id == imageId, cancellationToken);
+
+        if (image == null)
+        {
+            return Forbid();
+        }
+
+        // Todo usuario autenticado puede ver todas las imágenes en v0.1 (§8.4)
+        Response.Headers["X-Storage-Key"] = image.StorageKey;
 
         return NoContent(); // 204 No Content
     }

@@ -29,11 +29,16 @@ Thumbs.db
 keys/
 **/keys/
 
-## Node / Python tooling
-node_modules/
-dist/
+## Python
 .venv/
 __pycache__/
-.mypy_cache/
+*.pyc
 .pytest_cache/
+.mypy_cache/
 .ruff_cache/
+
+## Node
+node_modules/
+
+## Build output
+dist/

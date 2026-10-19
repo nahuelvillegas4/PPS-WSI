@@ -34,7 +34,9 @@ services:
       ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=${POSTGRES_DB:-gia_db};Username=${POSTGRES_USER:-gia_user};Password=${POSTGRES_PASSWORD:-gia_dev_password_change_me};"
       DATA_PROTECTION_KEYS_PATH: ${DATA_PROTECTION_KEYS_PATH:-/keys}
     ports:
-      - "${API_PORT:-8080}:8080"
+      # 8081 por defecto: el 8080 es del gateway (HTTP_PORT). La API se publica solo para
+      # desarrollo (Swagger); el puerto desaparece cuando termine la integración (ADR-11).
+      - "${API_PORT:-8081}:8080"
     volumes:
       - ${IMAGES_DIR:-./data/images}:/data/images:ro
       - dpkeys:/keys
@@ -45,16 +47,44 @@ services:
       retries: 5
       start_period: 10s
 
-# Los servicios gateway (Nginx) y tiles (FastAPI + OpenSlide) se incorporan en I0 por PPS 1
-# gateway:
-#   build: { context: ., dockerfile: deploy/gateway/Dockerfile }
-#   ports: ["${HTTP_PORT:-8080}:80"]
-#   depends_on:
-#     api: { condition: service_healthy }
-#     tiles: { condition: service_healthy }
-# tiles:
-#   build: ./tiles
-#   volumes: ["${IMAGES_DIR:-./data/images}:/data/images:ro"]
+  # Servicio de teselas (PPS 1): solo la red interna lo alcanza; el navegador pasa por el gateway.
+  tiles:
+    build:
+      context: ./tiles
+      dockerfile: Dockerfile
+    container_name: gia-tiles
+    volumes:
+      - ${IMAGES_DIR:-./data/images}:/data/images:ro
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Pasarela (Nginx): único puerto publicado del sistema; sirve la SPA y reenvía /api/ y /tiles/.
+  gateway:
+    build:
+      context: .
+      dockerfile: deploy/gateway/Dockerfile
+    container_name: gia-gateway
+    depends_on:
+      api:
+        condition: service_healthy
+      tiles:
+        condition: service_healthy
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
 volumes:
   pgdata:

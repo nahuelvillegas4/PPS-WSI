@@ -1,0 +1,21 @@
+[project]
+name = "gia-tiles"
+version = "0.1.0"
+description = "Servicio de teselas Deep Zoom (PPS 1)"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.mypy]
+strict = true
+files = ["app", "tests"]

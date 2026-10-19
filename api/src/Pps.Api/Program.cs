@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Pps.Api.Common.Errors;
 using Pps.Api.Common.Middleware;
+using Pps.Api.Common.Security;
+using Pps.Domain.Auth;
 using Pps.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -81,6 +84,10 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 builder.Services.AddAuthorization();
 
+// Servicios de autenticación y seguridad
+builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+builder.Services.AddSingleton<ILoginAttemptTracker, LoginAttemptTracker>();
+
 // 4. Manejo de Errores RFC 9457 con traceId y tipos URN (§8.5, §8.7)
 builder.Services.AddExceptionHandler<GiaExceptionHandler>();
 builder.Services.AddProblemDetails(options =>
@@ -95,8 +102,12 @@ builder.Services.AddProblemDetails(options =>
     };
 });
 
-// 5. Controladores con validación estricta y formato RFC 9457
+// 5. Controladores con validación estricta (additionalProperties: false) y formato RFC 9457
 builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow;
+    })
     .ConfigureApiBehaviorOptions(options =>
     {
         options.InvalidModelStateResponseFactory = context =>
