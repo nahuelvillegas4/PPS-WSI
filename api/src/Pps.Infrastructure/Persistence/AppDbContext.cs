@@ -74,6 +74,8 @@ public class AppDbContext : DbContext
             b.Property(i => i.StorageKey).HasMaxLength(500).IsRequired();
             b.Property(i => i.OriginalFilename).HasMaxLength(500).IsRequired();
             b.Property(i => i.Kind).HasMaxLength(50).IsRequired();
+            b.Property(i => i.Format).HasMaxLength(20).IsRequired().HasDefaultValue("png");
+            b.Property(i => i.LevelCount).IsRequired().HasDefaultValue(1);
             b.HasOne(i => i.Dataset)
                 .WithMany(d => d.Images)
                 .HasForeignKey(i => i.DatasetId)
@@ -81,6 +83,9 @@ public class AppDbContext : DbContext
 
             // Clave única alternativa para clave foránea compuesta desde Annotations
             b.HasAlternateKey(i => new { i.DatasetId, i.Id });
+
+            // Restricción única para evitar registrar dos veces el mismo storageKey en el mismo dataset (ADR-07, OpenAPI 409 already-registered)
+            b.HasIndex(i => new { i.DatasetId, i.StorageKey }).IsUnique();
         });
 
         // 6. Annotations

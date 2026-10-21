@@ -287,6 +287,14 @@ namespace Pps.Infrastructure.Persistence.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("dataset_id");
 
+                    b.Property<string>("Format")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("png")
+                        .HasColumnName("format");
+
                     b.Property<int>("HeightL0")
                         .HasColumnType("integer")
                         .HasColumnName("height_l0");
@@ -296,6 +304,12 @@ namespace Pps.Infrastructure.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("kind");
+
+                    b.Property<int>("LevelCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("level_count");
 
                     b.Property<double?>("MppX")
                         .HasColumnType("double precision")
@@ -326,6 +340,10 @@ namespace Pps.Infrastructure.Persistence.Migrations
 
                     b.HasAlternateKey("DatasetId", "Id")
                         .HasName("ak_images_dataset_id_id");
+
+                    b.HasIndex("DatasetId", "StorageKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_images_dataset_id_storage_key");
 
                     b.ToTable("images", (string)null);
                 });

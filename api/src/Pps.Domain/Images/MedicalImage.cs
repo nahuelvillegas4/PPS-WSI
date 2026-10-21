@@ -12,8 +12,10 @@ public class MedicalImage : BaseEntity
     public string StorageKey { get; set; } = string.Empty;
     public string OriginalFilename { get; set; } = string.Empty;
     public string Kind { get; set; } = "wsi"; // "wsi" | "conventional"
+    public string Format { get; set; } = "png"; // "svs" | "png" | "jpeg"
     public int WidthL0 { get; set; }
     public int HeightL0 { get; set; }
+    public int LevelCount { get; set; } = 1;
     public double? MppX { get; set; }
     public double? MppY { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

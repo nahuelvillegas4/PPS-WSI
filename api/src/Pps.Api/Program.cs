@@ -7,7 +7,9 @@ using Pps.Api.Common.Errors;
 using Pps.Api.Common.Middleware;
 using Pps.Api.Common.Security;
 using Pps.Domain.Auth;
+using Pps.Domain.Images;
 using Pps.Infrastructure.Persistence;
+using Pps.Infrastructure.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -88,7 +90,59 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddSingleton<ILoginAttemptTracker, LoginAttemptTracker>();
 
-// 4. Manejo de Errores RFC 9457 con traceId y tipos URN (§8.5, §8.7)
+// 4. Servicio de almacenamiento del volumen de imágenes (ADR-03, Épica E4)
+string imagesPath;
+if (Directory.Exists("/data/images"))
+{
+    imagesPath = "/data/images";
+}
+else
+{
+    var configured = builder.Configuration["STORAGE_IMAGES_PATH"]
+                     ?? builder.Configuration["IMAGES_DIR"]
+                     ?? builder.Configuration["Storage:ImagesPath"];
+
+    if (!string.IsNullOrEmpty(configured) && Directory.Exists(configured))
+    {
+        imagesPath = Path.GetFullPath(configured);
+    }
+    else
+    {
+        var dir = new DirectoryInfo(builder.Environment.ContentRootPath);
+        string? candidate = null;
+        while (dir != null)
+        {
+            var testPath = Path.Combine(dir.FullName, "data", "images");
+            if (Directory.Exists(testPath))
+            {
+                candidate = testPath;
+                break;
+            }
+            dir = dir.Parent;
+        }
+        imagesPath = candidate ?? Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, configured ?? "data/images"));
+    }
+}
+
+builder.Services.AddSingleton<IStorageService>(sp =>
+{
+    var logger = sp.GetRequiredService<ILogger<PhysicalStorageService>>();
+    return new PhysicalStorageService(imagesPath, logger);
+});
+
+// 5. Cliente de inspección de imágenes hacia el servicio tiles (ADR-03, §12.8)
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddTransient<TraceIdDelegatingHandler>();
+
+var tilesServiceUrl = builder.Configuration["TILES_SERVICE_URL"] ?? "http://tiles:8000";
+builder.Services.AddHttpClient<IImageInspector, TilesImageInspector>(client =>
+{
+    client.BaseAddress = new Uri(tilesServiceUrl);
+    client.Timeout = TimeSpan.FromSeconds(10);
+})
+.AddHttpMessageHandler<TraceIdDelegatingHandler>();
+
+// 6. Manejo de Errores RFC 9457 con traceId y tipos URN (§8.5, §8.7)
 builder.Services.AddExceptionHandler<GiaExceptionHandler>();
 builder.Services.AddProblemDetails(options =>
 {
@@ -102,7 +156,7 @@ builder.Services.AddProblemDetails(options =>
     };
 });
 
-// 5. Controladores con validación estricta (additionalProperties: false) y formato RFC 9457
+// 7. Controladores con validación estricta (additionalProperties: false) y formato RFC 9457
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -166,4 +220,3 @@ app.MapControllers();
 await DatabaseInitializer.InitializeDatabaseAsync(app.Services);
 
 await app.RunAsync();
-

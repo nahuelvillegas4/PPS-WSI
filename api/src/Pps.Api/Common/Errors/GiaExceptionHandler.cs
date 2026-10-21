@@ -2,6 +2,7 @@ namespace Pps.Api.Common.Errors;
 
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Pps.Domain.Images;
 
 public class GiaExceptionHandler : IExceptionHandler
 {
@@ -35,6 +36,46 @@ public class GiaExceptionHandler : IExceptionHandler
 
             _logger.LogWarning(exception, "GIA Problem [{StatusCode}] {Type}: {Detail} (traceId: {TraceId})",
                 statusCode, problemType, detail, traceId);
+        }
+        else if (exception is InvalidStorageKeyException invalidKeyEx)
+        {
+            problemType = GiaProblemTypes.InvalidStorageKey;
+            statusCode = StatusCodes.Status422UnprocessableEntity;
+            title = "Unprocessable Entity";
+            detail = invalidKeyEx.Message;
+
+            _logger.LogWarning(exception, "GIA Problem [422] {Type}: {Detail} (traceId: {TraceId})",
+                problemType, detail, traceId);
+        }
+        else if (exception is ImageFileNotFoundException notFoundEx)
+        {
+            problemType = GiaProblemTypes.NotFound;
+            statusCode = StatusCodes.Status404NotFound;
+            title = "Resource Not Found";
+            detail = notFoundEx.Message;
+
+            _logger.LogWarning(exception, "GIA Problem [404] {Type}: {Detail} (traceId: {TraceId})",
+                problemType, detail, traceId);
+        }
+        else if (exception is UnsupportedImageFormatException unsupportedEx)
+        {
+            problemType = GiaProblemTypes.UnsupportedImageFormat;
+            statusCode = StatusCodes.Status422UnprocessableEntity;
+            title = "Unprocessable Entity";
+            detail = unsupportedEx.Message;
+
+            _logger.LogWarning(exception, "GIA Problem [422] {Type}: {Detail} (traceId: {TraceId})",
+                problemType, detail, traceId);
+        }
+        else if (exception is TilesServiceUnavailableException tilesUnavailEx)
+        {
+            problemType = GiaProblemTypes.DependencyUnavailable;
+            statusCode = StatusCodes.Status503ServiceUnavailable;
+            title = "Service Unavailable";
+            detail = tilesUnavailEx.Message;
+
+            _logger.LogWarning(exception, "GIA Problem [503] {Type}: {Detail} (traceId: {TraceId})",
+                problemType, detail, traceId);
         }
         else
         {

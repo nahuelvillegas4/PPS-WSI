@@ -96,6 +96,30 @@ public class UnprocessableEntityProblemException : GiaProblemException
     }
 }
 
+public class InvalidStorageKeyProblemException : GiaProblemException
+{
+    public InvalidStorageKeyProblemException(string detail = "La clave de almacenamiento o prefijo es inválida.")
+        : base(
+            problemType: GiaProblemTypes.InvalidStorageKey,
+            statusCode: StatusCodes.Status422UnprocessableEntity,
+            title: "Unprocessable Entity",
+            detail: detail)
+    {
+    }
+}
+
+public class DependencyUnavailableProblemException : GiaProblemException
+{
+    public DependencyUnavailableProblemException(string detail = "El servicio de teselas no está disponible.")
+        : base(
+            problemType: GiaProblemTypes.DependencyUnavailable,
+            statusCode: StatusCodes.Status503ServiceUnavailable,
+            title: "Service Unavailable",
+            detail: detail)
+    {
+    }
+}
+
 public class PreconditionFailedProblemException : GiaProblemException
 {
     public PreconditionFailedProblemException(string detail = "Version mismatch (ETag does not match)")

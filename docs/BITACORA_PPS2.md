@@ -148,15 +148,71 @@ Las geometrías se guardan como `jsonb` en nivel 0 y la sesión es por cookie ([
 
 ---
 
-### Día 4 (Planificado para la próxima jornada): Épica E4 — Exploración de Almacenamiento y Registro de Imágenes
-- **Fecha prevista:** 22/10/2026
+### Día 4: Épica E4 — Exploración de Almacenamiento, Inspección y Registro de Imágenes
+- **Fecha:** 22/10/2026
+- **Horas dedicadas:** 6 horas (Acumulado: 28 horas)
 - **Módulo:** Almacenamiento y Registro de Imágenes (Épica E4, avance Incremento I1)
+- **Actividades realizadas:**
+  1. **Explorador de Almacenamiento del Servidor (`StorageController`):**
+     - Implementación de `StorageKeyValidator` en el dominio para validación estricta contra ataques de Path Traversal (rechazo de `..`, rutas absolutas, barras invertidas `\` y caracteres de unidad) con mapeo a HTTP 422 (`urn:gia:problem:invalid-storage-key`).
+     - Clasificación determinista de `kind`: `wsi` para `.svs`, `conventional` para `.png`/`.jpg`/`.jpeg`, y `other` para archivos no soportados.
+     - Implementación de `IStorageService` y `PhysicalStorageService` para recorrer el volumen de imágenes `/data/images` de forma recursiva, omitiendo archivos ocultos y calculando `sizeBytes`.
+     - Creación del endpoint `GET /api/v1/storage/files?prefix=` protegido para administradores (`[Authorize(Roles = "admin")]`) con cruce de datasets registrados (`registeredInDatasets`).
+  2. **Modelado y Migración EF Core para Cumplimiento OpenAPI:**
+     - Actualización de la entidad `MedicalImage` agregando las propiedades `Format` (`svs`, `png`, `jpeg`) y `LevelCount` exigidas por el esquema contractual `Image`.
+     - Creación de la migración `20261021230741_AddImageFormatAndLevelCount` con índice único compuesto `(dataset_id, storage_key)` para garantizar atomicidad e integridad referencial contra duplicados.
+  3. **Cliente de Inspección de Imágenes (`IImageInspector`):**
+     - Implementación de `TilesImageInspector` como cliente HTTP hacia `GET /internal/v1/inspect?storageKey=` del servicio `tiles` (`http://tiles:8000`).
+     - Propagación de trazabilidad distribuida mediante `TraceIdDelegatingHandler` inyectando la cabecera `X-Request-ID` en cada llamada interna.
+     - Manejo exhaustivo de códigos de error según RFC 9457: mapeo de 404 (`urn:gia:problem:not-found`), 415/422 (`urn:gia:problem:unsupported-image-format`, `urn:gia:problem:invalid-storage-key`) y 503 (`urn:gia:problem:dependency-unavailable`), junto con fallback local determinista según §12.8 para desarrollo aislado.
+  4. **Controlador y Registro Atómico de Imágenes (`ImagesController`):**
+     - Endpoint `POST /api/v1/datasets/{datasetId}/images`: validación de prefijos, control de imágenes ya registradas en el dataset (`409 already-registered`), inspección técnica y persistencia atómica en una única transacción de base de datos (`201 Created`).
+     - Endpoint `GET /api/v1/datasets/{datasetId}/images`: listado paginado (`page`, `pageSize`, `total`) retornando la URL de teselas DZI (`tileSourceUrl = /tiles/v1/images/{id}.dzi`).
+     - Endpoint `GET /api/v1/images/{imageId}`: consulta individual de imagen y metadatos técnicos de nivel 0.
+  5. **Verificación Integral en Docker Compose:**
+     - Generación de imagen sintética de prueba D2 (`samples/prueba-1376x1020.png`, 1376 × 1020 px) con `scripts/make_sample_image.py`.
+     - Despliegue conjunto y verificación con `curl` sobre `gia-api` (.NET 10 LTS), `gia-tiles` (FastAPI + OpenSlide) y `gia-db` (PostgreSQL 18).
+     - Validación del ciclo completo: listado de archivos $\to$ registro en dataset $\to$ inspección por `tiles` $\to$ persistencia de dimensiones $\to$ re-consulta $\to$ autorización de teselas `GET /internal/v1/tile-access` respondiendo `204 No Content` con cabecera `X-Storage-Key`.
+- **Entregables / Commits:**
+  - Archivos creados o modificados:
+    - `api/src/Pps.Domain/Images/IStorageService.cs`
+    - `api/src/Pps.Domain/Images/IImageInspector.cs`
+    - `api/src/Pps.Domain/Images/StorageKeyValidator.cs`
+    - `api/src/Pps.Domain/Images/InvalidStorageKeyException.cs`
+    - `api/src/Pps.Domain/Images/ImageInspectionExceptions.cs`
+    - `api/src/Pps.Domain/Images/MedicalImage.cs`
+    - `api/src/Pps.Infrastructure/Storage/PhysicalStorageService.cs`
+    - `api/src/Pps.Infrastructure/Storage/TilesImageInspector.cs`
+    - `api/src/Pps.Infrastructure/Persistence/AppDbContext.cs`
+    - `api/src/Pps.Infrastructure/Persistence/Migrations/20261021230741_AddImageFormatAndLevelCount.cs`
+    - `api/src/Pps.Infrastructure/Persistence/Migrations/20261021230741_AddImageFormatAndLevelCount.Designer.cs`
+    - `api/src/Pps.Infrastructure/Persistence/Migrations/AppDbContextModelSnapshot.cs`
+    - `api/src/Pps.Api/Common/Middleware/TraceIdDelegatingHandler.cs`
+    - `api/src/Pps.Api/Common/Errors/GiaExceptions.cs`
+    - `api/src/Pps.Api/Common/Errors/GiaExceptionHandler.cs`
+    - `api/src/Pps.Api/Controllers/Storage/StorageController.cs`
+    - `api/src/Pps.Api/Controllers/Storage/Dtos/StorageFileResponse.cs`
+    - `api/src/Pps.Api/Controllers/Images/ImagesController.cs`
+    - `api/src/Pps.Api/Controllers/Images/Dtos/RegisterImagesRequest.cs`
+    - `api/src/Pps.Api/Controllers/Images/Dtos/ImageResponse.cs`
+    - `api/src/Pps.Api/Program.cs`
+    - `docs/BITACORA_PPS2.md`
+- **Dificultades y soluciones:**
+  - En Docker, el volumen de imágenes se monta estrictamente en `/data/images`, mientras que en el host se encuentra en `./data/images`. Se implementó una resolución jerárquica en `Program.cs` que detecta `/data/images` en contenedores Linux y resuelve rutas relativas hacia arriba en desarrollo local sobre Windows.
+  - El servicio de teselas (`tiles`) requiere propagación de `X-Request-ID` para correlación distribuida. Se implementó `TraceIdDelegatingHandler` conectado a `IHttpContextAccessor` que inyecta automáticamente el ID de rastreo a nivel de `HttpClient`.
+- **Estado:** Completado (Épica E4 100% cerrada).
+
+---
+
+### Día 5 (Planificado para la próxima jornada): Épica E5 — Modelo Espacial y Persistencia de Anotaciones en Nivel 0
+- **Fecha prevista:** 23/10/2026
+- **Módulo:** Anotaciones (Épica E5, avance Incremento I1)
 - **Tareas a realizar:**
-  1. Implementar `GET /api/v1/storage/files?prefix=` (`StorageController`, solo `admin`) para listar los archivos disponibles en el volumen `/data/images`, clasificando `kind` (`wsi`, `conventional`, `other`), informando `registeredInDatasets` y validando seguridad de rutas contra path traversal (`422 invalid-storage-key`).
-  2. Definir e implementar `IImageInspector` (cliente HTTP hacia `GET /internal/v1/inspect?storageKey=` del servicio `tiles` con propagación de `X-Request-ID`, manejo de `503 dependency-unavailable` / `415 unsupported-image-format` / `404 file-not-found`, más doble de prueba/fallback local según §12.8 para avanzar sin bloqueo mientras no esté levantado `tiles`).
-  3. Implementar `GET /api/v1/datasets/{datasetId}/images` (listado paginado con `page`, `pageSize` y `total`) y `POST /api/v1/datasets/{datasetId}/images` (registro atómico de lotes `storageKeys`, control de `409 already-registered` en el mismo dataset y persistencia de dimensiones de nivel 0 `width`, `height`, `levelCount`, `mppX`, `mppY`).
-  4. Implementar `GET /api/v1/images/{imageId}` incluyendo la construcción de `tileSourceUrl` (`/tiles/v1/images/{imageId}.dzi`).
-  5. Verificar todos los casos sobre Docker Compose y registrar resultados en la bitácora.
+  1. Implementar validador de geometrías GeoJSON según las reglas del Anexo A y el contrato (`geometry-validation.json`): verificación de límites de nivel 0 (`urn:gia:problem:geometry-out-of-bounds`), degeneración (`geometry-degenerate`), autointersecciones (`geometry-self-intersection`) y pertenencia de clase al dataset (`class-not-in-dataset`).
+  2. Implementar `POST /api/v1/images/{imageId}/annotations` para creación de anotaciones (rectángulos y polígonos) persistidas en `jsonb` con autoría automática del usuario en sesión y cálculo de caja envolvente (`bbox`).
+  3. Implementar `GET /api/v1/images/{imageId}/annotations` con filtrado por conjunto (`user` vs `all`) y soporte de concurrencia optimista (`ETag` / `If-Match` con columna `xmin`).
+  4. Implementar actualización parcial `PATCH /api/v1/annotations/{annotationId}` y borrado lógico `DELETE /api/v1/annotations/{annotationId}` restringidos al autor o administrador.
+  5. Verificación de casos numéricos contra los fixtures del contrato (`coordinates.json`, `geometry-validation.json`).
 - **Estado:** Pendiente (Próxima jornada).
 
 ---
@@ -178,4 +234,3 @@ Las geometrías se guardan como `jsonb` en nivel 0 y la sesión es por cookie ([
   - ...
 - **Estado:** [En progreso / Completado]
 ```
-
