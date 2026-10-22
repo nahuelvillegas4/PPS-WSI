@@ -2,6 +2,7 @@ namespace Pps.Api.Common.Errors;
 
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Pps.Domain.Annotations;
 using Pps.Domain.Images;
 
 public class GiaExceptionHandler : IExceptionHandler
@@ -36,6 +37,46 @@ public class GiaExceptionHandler : IExceptionHandler
 
             _logger.LogWarning(exception, "GIA Problem [{StatusCode}] {Type}: {Detail} (traceId: {TraceId})",
                 statusCode, problemType, detail, traceId);
+        }
+        else if (exception is GeometryOutOfBoundsException oobEx)
+        {
+            problemType = GiaProblemTypes.GeometryOutOfBounds;
+            statusCode = StatusCodes.Status422UnprocessableEntity;
+            title = "Unprocessable Entity";
+            detail = oobEx.Message;
+
+            _logger.LogWarning(exception, "GIA Problem [422] {Type}: {Detail} (traceId: {TraceId})",
+                problemType, detail, traceId);
+        }
+        else if (exception is GeometryDegenerateException degEx)
+        {
+            problemType = GiaProblemTypes.GeometryDegenerate;
+            statusCode = StatusCodes.Status422UnprocessableEntity;
+            title = "Unprocessable Entity";
+            detail = degEx.Message;
+
+            _logger.LogWarning(exception, "GIA Problem [422] {Type}: {Detail} (traceId: {TraceId})",
+                problemType, detail, traceId);
+        }
+        else if (exception is GeometrySelfIntersectionException selfEx)
+        {
+            problemType = GiaProblemTypes.GeometrySelfIntersection;
+            statusCode = StatusCodes.Status422UnprocessableEntity;
+            title = "Unprocessable Entity";
+            detail = selfEx.Message;
+
+            _logger.LogWarning(exception, "GIA Problem [422] {Type}: {Detail} (traceId: {TraceId})",
+                problemType, detail, traceId);
+        }
+        else if (exception is ClassNotInDatasetException classEx)
+        {
+            problemType = GiaProblemTypes.ClassNotInDataset;
+            statusCode = StatusCodes.Status422UnprocessableEntity;
+            title = "Unprocessable Entity";
+            detail = classEx.Message;
+
+            _logger.LogWarning(exception, "GIA Problem [422] {Type}: {Detail} (traceId: {TraceId})",
+                problemType, detail, traceId);
         }
         else if (exception is InvalidStorageKeyException invalidKeyEx)
         {

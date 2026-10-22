@@ -204,15 +204,59 @@ Las geometrías se guardan como `jsonb` en nivel 0 y la sesión es por cookie ([
 
 ---
 
-### Día 5 (Planificado para la próxima jornada): Épica E5 — Modelo Espacial y Persistencia de Anotaciones en Nivel 0
-- **Fecha prevista:** 23/10/2026
-- **Módulo:** Anotaciones (Épica E5, avance Incremento I1)
+### Día 5: Épica E5 — Modelo Espacial, Validación Geométrica y Persistencia de Anotaciones en Nivel 0
+- **Fecha:** 23/10/2026
+- **Horas dedicadas:** 6 horas (Acumulado: 34 horas)
+- **Módulo:** Anotaciones y Modelo Espacial (Épica E5, avance Incremento I1)
+- **Actividades realizadas:**
+  1. **Motor de Dominio y Modelado Polimórfico de Geometrías (`Pps.Domain.Annotations`):**
+     - Modelado polimórfico de geometrías nivel 0 (`Geometry`, `RectangleGeometry`, `PolygonGeometry`) con soporte de discriminador `type` y deserialización fuera de orden (`AllowOutOfOrderMetadataProperties = true`) requerida para la persistencia no ordenada de PostgreSQL `jsonb`.
+     - Implementación de validación estricta de esquemas (HTTP 400 `urn:gia:problem:validation`) validando rangos, dimensiones estrictamente positivas y cantidad y componentes de vértices mediante `IValidatableObject`.
+  2. **Validador de Geometrías de Dominio (`GeometryValidator`):**
+     - Implementación algorítmica de reglas del Anexo A y contrato v0.1 en orden determinista: límites de nivel 0 (`urn:gia:problem:geometry-out-of-bounds`), degeneración por cierre explícito o vértices repetidos (`urn:gia:problem:geometry-degenerate`), autointersecciones complejas tipo moño mediante intersección de segmentos 2D (`urn:gia:problem:geometry-self-intersection`) y degeneración por área nula/colinealidad (fórmula del cordón de zapato / Gauss).
+     - Cálculo determinista de caja envolvente (`BboxMinX`, `BboxMinY`, `BboxMaxX`, `BboxMaxY`) y área en nivel 0.
+  3. **Controlador y Endpoints de Anotaciones (`AnnotationsController`):**
+     - `POST /api/v1/images/{imageId}/annotations`: creación y persistencia atómica en `jsonb`, autoría asignada automáticamente al usuario en sesión (`gia_session`), validación de pertenencia de clase al dataset de la imagen (HTTP 422 `urn:gia:problem:class-not-in-dataset`), retorno de `201 Created` con cabeceras `Location` y `ETag` (concurrencia optimista `xmin`).
+     - `GET /api/v1/images/{imageId}/annotations`: listado con filtrado por conjunto (`author=me`, `author=all` o `{userId}`), excluyendo registros con borrado lógico (`deleted_at == null`).
+     - `GET /api/v1/annotations/{annotationId}`: consulta individual retornando la versión en la cabecera `ETag`.
+     - `PATCH /api/v1/annotations/{annotationId}`: actualización parcial (`classId` y/o `geometry`), cabecera `If-Match` obligatoria (HTTP 428 si falta, HTTP 412 `urn:gia:problem:version-mismatch` si no coincide), y aislamiento estricto de autores (HTTP 403 `urn:gia:problem:forbidden` incluso para administradores, según ADR-07).
+     - `DELETE /api/v1/annotations/{annotationId}`: borrado lógico (`deleted_at = DateTime.UtcNow`), `If-Match` opcional, restringido estrictamente al autor (403), respondiendo `204 No Content`.
+  4. **Suite de Pruebas Automatizadas y Verificación contra Fixtures del Contrato:**
+     - Creación del proyecto de pruebas xUnit `Pps.Domain.Tests` en .NET 10 LTS.
+     - Cobertura completa contra los casos de `contract/fixtures/geometry-validation.json`: verificación de casos válidos, rechazo de casos 400 y mapeo exacto de los casos 422 al URN correspondiente.
+     - Despliegue y verificación en vivo sobre Docker Compose (`gia-api`, `gia-db` y `gia-tiles`), validando concurrencia optimista, protección contra modificaciones ajenas y restricción de integridad referencial al intentar eliminar clases en uso (`409 class-in-use`).
+- **Entregables / Commits:**
+  - Archivos creados o modificados:
+    - `api/src/Pps.Domain/Annotations/Geometry.cs`
+    - `api/src/Pps.Domain/Annotations/RectangleGeometry.cs`
+    - `api/src/Pps.Domain/Annotations/PolygonGeometry.cs`
+    - `api/src/Pps.Domain/Annotations/GeometryValidator.cs`
+    - `api/src/Pps.Domain/Annotations/GeometryExceptions.cs`
+    - `api/src/Pps.Api/Controllers/Annotations/AnnotationsController.cs`
+    - `api/src/Pps.Api/Controllers/Annotations/Dtos/CreateAnnotationRequest.cs`
+    - `api/src/Pps.Api/Controllers/Annotations/Dtos/UpdateAnnotationRequest.cs`
+    - `api/src/Pps.Api/Controllers/Annotations/Dtos/AnnotationResponse.cs`
+    - `api/src/Pps.Api/Controllers/Annotations/Dtos/AnnotationListResponse.cs`
+    - `api/src/Pps.Api/Common/Errors/GiaExceptionHandler.cs`
+    - `api/src/Pps.Api/Program.cs`
+    - `api/Dockerfile`
+    - `api/tests/Pps.Domain.Tests/*`
+    - `docs/BITACORA_PPS2.md`
+- **Dificultades y soluciones:**
+  - PostgreSQL almacena las columnas `jsonb` ordenando internamente las claves por longitud y hash, lo que provocaba que `"x"` y `"y"` precedieran a `"type"`. En .NET 10 se habilitó `AllowOutOfOrderMetadataProperties = true` en las opciones de serialización polimórfica para tolerar atributos fuera de orden sin requerir almacenamiento en texto plano.
+  - La validación de modelos polimórficos de ASP.NET Core no evaluaba automáticamente `IValidatableObject` sobre propiedades declaradas con el tipo base abstracto `Geometry`. Se implementó la invocación recursiva explícita de `Validator.TryValidateObject` en los DTOs de entrada.
+- **Estado:** Completado (Épica E5 100% cerrada).
+
+---
+
+### Día 6 (Planificado para la próxima jornada): Épica E6 — Módulo de Exportación a JSON Interno Documentado (ADR-10)
+- **Fecha prevista:** 26/10/2026 (Inicio de Semana 2)
+- **Módulo:** Exportación (Épica E6, cierre del Incremento I1)
 - **Tareas a realizar:**
-  1. Implementar validador de geometrías GeoJSON según las reglas del Anexo A y el contrato (`geometry-validation.json`): verificación de límites de nivel 0 (`urn:gia:problem:geometry-out-of-bounds`), degeneración (`geometry-degenerate`), autointersecciones (`geometry-self-intersection`) y pertenencia de clase al dataset (`class-not-in-dataset`).
-  2. Implementar `POST /api/v1/images/{imageId}/annotations` para creación de anotaciones (rectángulos y polígonos) persistidas en `jsonb` con autoría automática del usuario en sesión y cálculo de caja envolvente (`bbox`).
-  3. Implementar `GET /api/v1/images/{imageId}/annotations` con filtrado por conjunto (`user` vs `all`) y soporte de concurrencia optimista (`ETag` / `If-Match` con columna `xmin`).
-  4. Implementar actualización parcial `PATCH /api/v1/annotations/{annotationId}` y borrado lógico `DELETE /api/v1/annotations/{annotationId}` restringidos al autor o administrador.
-  5. Verificación de casos numéricos contra los fixtures del contrato (`coordinates.json`, `geometry-validation.json`).
+  1. Implementar `GET /api/v1/datasets/{datasetId}/exports?format=internal`: generación del archivo JSON unificado con metadatos del dataset, clases activas, imágenes registradas y geometrías de nivel 0 de todas las anotaciones no borradas.
+  2. Validación estricta del esquema `internal-export.schema.json` y verificación contra el fixture `export.json`.
+  3. Soporte de streaming / descarga de archivo con cabeceras `Content-Disposition: attachment; filename="{slug}-export.json"`.
+  4. Pruebas de integración del flujo de punta a punta del Incremento I1 (Dataset $\to$ Imagen $\to$ Anotación $\to$ Exportación).
 - **Estado:** Pendiente (Próxima jornada).
 
 ---

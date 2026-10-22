@@ -7,6 +7,7 @@ COPY PpsPlatform.sln ./
 COPY src/Pps.Domain/Pps.Domain.csproj src/Pps.Domain/
 COPY src/Pps.Infrastructure/Pps.Infrastructure.csproj src/Pps.Infrastructure/
 COPY src/Pps.Api/Pps.Api.csproj src/Pps.Api/
+COPY tests/Pps.Domain.Tests/Pps.Domain.Tests.csproj tests/Pps.Domain.Tests/
 
 RUN dotnet restore
 

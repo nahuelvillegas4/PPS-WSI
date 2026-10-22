@@ -161,6 +161,7 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow;
+        options.JsonSerializerOptions.AllowOutOfOrderMetadataProperties = true;
     })
     .ConfigureApiBehaviorOptions(options =>
     {
