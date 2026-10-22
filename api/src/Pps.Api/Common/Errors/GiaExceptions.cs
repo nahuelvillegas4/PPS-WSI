@@ -143,3 +143,15 @@ public class PreconditionRequiredProblemException : GiaProblemException
     {
     }
 }
+
+public class ValidationProblemException : GiaProblemException
+{
+    public ValidationProblemException(string detail, string slug = "validation")
+        : base(
+            problemType: $"{GiaProblemTypes.Prefix}{slug}",
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Bad Request",
+            detail: detail)
+    {
+    }
+}

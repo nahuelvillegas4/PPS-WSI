@@ -118,6 +118,26 @@ public class GiaExceptionHandler : IExceptionHandler
             _logger.LogWarning(exception, "GIA Problem [503] {Type}: {Detail} (traceId: {TraceId})",
                 problemType, detail, traceId);
         }
+        else if (exception is Pps.Domain.Export.InvalidAuthorsFilterException filterEx)
+        {
+            problemType = GiaProblemTypes.Validation;
+            statusCode = StatusCodes.Status400BadRequest;
+            title = "Bad Request";
+            detail = filterEx.Message;
+
+            _logger.LogWarning(exception, "GIA Problem [400] {Type}: {Detail} (traceId: {TraceId})",
+                problemType, detail, traceId);
+        }
+        else if (exception is KeyNotFoundException notFoundKeyEx)
+        {
+            problemType = GiaProblemTypes.NotFound;
+            statusCode = StatusCodes.Status404NotFound;
+            title = "Resource Not Found";
+            detail = notFoundKeyEx.Message;
+
+            _logger.LogWarning(exception, "GIA Problem [404] {Type}: {Detail} (traceId: {TraceId})",
+                problemType, detail, traceId);
+        }
         else
         {
             problemType = GiaProblemTypes.InternalServerError;

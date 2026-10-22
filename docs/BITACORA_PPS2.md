@@ -249,14 +249,57 @@ Las geometrías se guardan como `jsonb` en nivel 0 y la sesión es por cookie ([
 
 ---
 
-### Día 6 (Planificado para la próxima jornada): Épica E6 — Módulo de Exportación a JSON Interno Documentado (ADR-10)
-- **Fecha prevista:** 26/10/2026 (Inicio de Semana 2)
-- **Módulo:** Exportación (Épica E6, cierre del Incremento I1)
+### Día 6: Épica E9 — Módulo de Exportación a JSON Interno Documentado (ADR-10) y Cierre de I1 (Backend)
+- **Fecha:** 26/10/2026
+- **Horas dedicadas:** 6 horas (Acumulado: 40 horas)
+- **Módulo:** Exportación (Épica E9, Cierre del Incremento I1 del lado de PPS 2)
+- **Actividades realizadas:**
+  1. **Modelado Contractual de Exportación Interna (`Pps.Domain.Export`):**
+     - Definición de records y DTOs para la serialización exacta de `internal-export.schema.json` (formato `gia-annotations` v1.0): metadatos del dataset, proyecto asociado, clases activas ordenadas por `displayOrder` e `id`, sistema de coordenadas en nivel 0 (`top-left-corner`, `down`, `px`), lista consolidada de autores con discriminación de origen (`human` vs. `import`), e imágenes con sus geometrías nivel 0 y procedencia (`provenance`).
+     - Creación de `ExportSlugifier` para generación limpia y normalizada de slugs de descarga (`{slug}-export.json`).
+     - Creación de `AuthorsFilterParser` para resolución determinista de filtros de autoría (`me` resolviendo al ID del usuario en sesión, `all` para el conjunto global, o lista de IDs enteros separados por comas).
+  2. **Servicio de Exportación (`InternalJsonExporter` implementando `IExporter`):**
+     - Implementación de `InternalJsonExporter` en `Pps.Infrastructure.Export` con consultas optimizadas de solo lectura (`AsNoTracking`) sobre PostgreSQL 18.
+     - Agrupación eficiente de anotaciones por imagen, exclusión automática de registros con borrado lógico (`deleted_at != null`) y mapeo polimórfico de geometrías nivel 0.
+     - Serialización UTF-8 con `JsonSerializerOptions` garantizando salida de propiedades nulas obligatorias (`mppX: null`, `provenance: null`) y codificación de caracteres acentuados sin secuencias de escape innecesarias (`UnsafeRelaxedJsonEscaping`).
+  3. **Controlador HTTP y Endpoints Contractuales (`ExportController`):**
+     - Implementación del endpoint `GET /api/v1/datasets/{datasetId}/export` bajo el tag `io` alineado con OpenAPI (`api.v1.yaml`).
+     - Validación exhaustiva de parámetros: obligatoriedad de `format` (HTTP 400), rechazo con HTTP 422 de formatos aplazados a I3 (`coco`, `yolo`) citando ADR-10, validación de IDs en `authors` (HTTP 400) y manejo de dataset inexistente (HTTP 404).
+     - Descarga de archivo mediante `Content-Disposition: attachment; filename="{slug}-export.json"`.
+  4. **Suite de Pruebas Automatizadas y Validación contra Esquema Contractual:**
+     - Integración de `JsonSchema.Net` en `Pps.Domain.Tests`.
+     - Verificación automatizada de validez de esquema contra `contract/schemas/internal-export.schema.json` y el fixture oficial `contract/fixtures/export.json`.
+     - Cobertura de pruebas unitarias sobre serialización de modelos, parsing de filtros de autor y generación de slugs (24/24 tests en verde).
+  5. **Verificación Integral en Vivo sobre Docker Compose:**
+     - Despliegue y validación en caliente sobre `gia-api` (.NET 10 LTS), `gia-db` (PostgreSQL 18) y `gia-tiles`.
+     - Prueba de punta a punta: inicio de sesión $\to$ listado de proyectos/datasets/imágenes $\to$ creación de anotaciones tipo rectángulo y polígono $\to$ exportación del JSON interno con descarga `Content-Disposition` y validación de cabeceras HTTP.
+- **Entregables / Commits:**
+  - Archivos creados o modificados:
+    - `api/src/Pps.Domain/Export/IExporter.cs`
+    - `api/src/Pps.Domain/Export/ExportSlugifier.cs`
+    - `api/src/Pps.Domain/Export/AuthorsFilterParser.cs`
+    - `api/src/Pps.Domain/Export/Internal/InternalExportModels.cs`
+    - `api/src/Pps.Infrastructure/Export/InternalJsonExporter.cs`
+    - `api/src/Pps.Api/Controllers/IO/ExportController.cs`
+    - `api/src/Pps.Api/Common/Errors/GiaExceptions.cs`
+    - `api/src/Pps.Api/Common/Errors/GiaExceptionHandler.cs`
+    - `api/src/Pps.Api/Program.cs`
+    - `api/tests/Pps.Domain.Tests/ExportTests.cs`
+    - `docs/BITACORA_PPS2.md`
+- **Dificultades y soluciones:**
+  - `JsonSchema.Net` restringe la re-registración estática de esquemas con el mismo URI; se utilizó una inicialización `Lazy<JsonSchema>` para compartir de manera segura el esquema registrado entre pruebas unitarias concurrentes.
+  - El esquema contractual exige que propiedades como `mppX`, `mppY` y `provenance` estén explícitamente presentes incluso cuando su valor es nulo; se configuró `JsonIgnoreCondition.Never` en el serializador de exportación para cumplir estrictamente con `required` y `additionalProperties: false`.
+- **Estado:** Completado (Incremento I1 100% cerrado del lado de Backend / PPS 2).
+
+---
+
+### Día 7 (Planificado para la próxima jornada): Inicio del Incremento I2 — Soporte WSI y Pruebas de Carga/Aislamiento
+- **Fecha prevista:** 27/10/2026
+- **Módulo:** WSI, Conjuntos y Rendimiento (Incremento I2)
 - **Tareas a realizar:**
-  1. Implementar `GET /api/v1/datasets/{datasetId}/exports?format=internal`: generación del archivo JSON unificado con metadatos del dataset, clases activas, imágenes registradas y geometrías de nivel 0 de todas las anotaciones no borradas.
-  2. Validación estricta del esquema `internal-export.schema.json` y verificación contra el fixture `export.json`.
-  3. Soporte de streaming / descarga de archivo con cabeceras `Content-Disposition: attachment; filename="{slug}-export.json"`.
-  4. Pruebas de integración del flujo de punta a punta del Incremento I1 (Dataset $\to$ Imagen $\to$ Anotación $\to$ Exportación).
+  1. Validación del flujo de registro y teselado sobre imágenes WSI reales (`.svs`) en `/data/images` y verificación de coordenadas nivel 0 con dimensiones gigantes (> 50.000 px).
+  2. Implementación de pruebas de concurrencia y aislamiento estricto de autores multi-revisor (verificación de 403 y filtrado de conjuntos por usuario en grandes volúmenes).
+  3. Medición preliminar de tiempos de respuesta en endpoints de anotaciones y teselas para cumplimiento de metas de calidad QS-1 a QS-4 y QS-8.
 - **Estado:** Pendiente (Próxima jornada).
 
 ---

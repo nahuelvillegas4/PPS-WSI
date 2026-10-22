@@ -7,7 +7,9 @@ using Pps.Api.Common.Errors;
 using Pps.Api.Common.Middleware;
 using Pps.Api.Common.Security;
 using Pps.Domain.Auth;
+using Pps.Domain.Export;
 using Pps.Domain.Images;
+using Pps.Infrastructure.Export;
 using Pps.Infrastructure.Persistence;
 using Pps.Infrastructure.Storage;
 
@@ -142,7 +144,11 @@ builder.Services.AddHttpClient<IImageInspector, TilesImageInspector>(client =>
 })
 .AddHttpMessageHandler<TraceIdDelegatingHandler>();
 
-// 6. Manejo de Errores RFC 9457 con traceId y tipos URN (§8.5, §8.7)
+// 6. Servicio de exportación a JSON interno (ADR-10, Épica E9)
+builder.Services.AddScoped<IExporter, InternalJsonExporter>();
+builder.Services.AddScoped<InternalJsonExporter>();
+
+// 7. Manejo de Errores RFC 9457 con traceId y tipos URN (§8.5, §8.7)
 builder.Services.AddExceptionHandler<GiaExceptionHandler>();
 builder.Services.AddProblemDetails(options =>
 {
