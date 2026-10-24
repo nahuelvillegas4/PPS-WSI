@@ -1,6 +1,6 @@
 # Interfaz web (PPS 1)
 
-Aplicación de una sola página (React + TypeScript) que muestra las imágenes con **OpenSeadragon**. Por ahora tiene una sola función: **abrir una imagen y recorrerla con zoom y desplazamiento**, pidiendo las teselas al servicio [`tiles/`](../tiles/README.md) a medida que se necesitan. Todavía no hay ingreso, catálogo ni anotaciones.
+Aplicación de una sola página (React + TypeScript) que muestra las imágenes con **OpenSeadragon**. Por ahora tiene una sola función: **abrir una imagen y recorrerla con zoom y desplazamiento**, pidiendo las teselas al servicio [`tiles/`](../tiles/README.md) a medida que se necesitan. Antes de mostrar cualquier pantalla pide **iniciar sesión** contra la API (`/api/v1/auth/*`, cookie `gia_session`). Todavía no hay catálogo ni anotaciones.
 
 El navegador habla solo con la pasarela (mismo origen): la SPA usa rutas relativas como `/tiles/v1/images/1.dzi`, así que el mismo artefacto sirve en local y en el servidor ([ADR-01](../docs/adr/0001-spa-y-dos-servicios-tras-pasarela.md)).
 
@@ -37,7 +37,11 @@ Las pruebas de conversión reproducen los casos C1, C2 y C3 de [`contract/fixtur
 | `src/features/viewer/coordinates.ts`    | Conversión pantalla ↔ nivel 0, el único lugar donde ocurre                                                                                       |
 | `src/features/viewer/ViewerPage.tsx`    | Pantalla del visor: controles, tamaño, escala y coordenada bajo el cursor                                                                        |
 | `src/features/viewer/tileSource.ts`     | URL del descriptor DZI de una imagen                                                                                                             |
-| `src/app/App.tsx`                       | Rutas mínimas: `/` y `/images/{id}`                                                                                                              |
+| `src/shared/api.ts`                     | Cliente HTTP: rutas relativas, JSON y errores RFC 9457 (`ApiError`, `NetworkError`)                                                              |
+| `src/features/auth/authApi.ts`          | `login`, `logout`, `fetchCurrentUser` y mensajes de error del ingreso                                                                            |
+| `src/features/auth/useSession.ts`       | Estado de la sesión (consulta `/auth/me` al cargar)                                                                                              |
+| `src/features/auth/LoginPage.tsx`       | Pantalla de ingreso                                                                                                                              |
+| `src/app/App.tsx`                       | Puerta de sesión y rutas mínimas: `/` y `/images/{id}`                                                                                                              |
 
 ## Decisiones y límites
 
@@ -45,4 +49,5 @@ Las pruebas de conversión reproducen los casos C1, C2 y C3 de [`contract/fixtur
 - **El clic simple no hace zoom.** Se reserva para las herramientas de anotación; el zoom es con la rueda, el doble clic o los botones.
 - **La URL del descriptor se arma por convención** (`/tiles/v1/images/{id}.dzi`). Cuando la API sirva `GET /api/v1/images/{id}`, se usará el `tileSourceUrl` que devuelve.
 - **Versiones.** `vitest` está en 5.0.5 y no en 5.0.2 (línea base §2.4): con `npm` 11.5.2, la 5.0.2 falla al instalarse con un error interno del resolutor. Es un cambio de parche (ADR-14).
-- **Pendientes:** la pantalla de ingreso y el catálogo, `SimpleImageViewer` para probar el editor sin teselas, y la generación de tipos desde `contract/openapi/api.v1.yaml`.
+- **Ingreso.** Sin sesión solo se ve la pantalla de ingreso y la URL no cambia: al ingresar se llega a la ruta pedida (p. ej. `/images/1`). Tras el `204` del login, la SPA confirma la sesión con `GET /auth/me` (la cookie es HttpOnly).
+- **Pendientes:** volver a la pantalla de ingreso cuando la sesión vence con el visor abierto (QS-7), el catálogo, `SimpleImageViewer` para probar el editor sin teselas, y la generación de tipos desde `contract/openapi/api.v1.yaml`.
