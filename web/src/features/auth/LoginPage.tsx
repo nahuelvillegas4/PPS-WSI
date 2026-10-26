@@ -1,4 +1,4 @@
-﻿import { type SyntheticEvent, useState } from 'react';
+import { type SyntheticEvent, useState } from 'react';
 import {
   type CurrentUser,
   fetchCurrentUser,
@@ -13,8 +13,8 @@ interface LoginPageProps {
 }
 
 /**
- * Login screen (Ã©pica E2, interfaz). It does not change the URL: after a successful login the
- * user lands on the same route they asked for, e.g. `/images/1` (arquitectura Â§6.1 and QS-7).
+ * Login screen (épica E2, interfaz). It does not change the URL: after a successful login the
+ * user lands on the same route they asked for, e.g. `/images/1` (arquitectura §6.1 and QS-7).
  */
 export function LoginPage({ onLoggedIn }: LoginPageProps) {
   const [username, setUsername] = useState('');
@@ -35,8 +35,8 @@ export function LoginPage({ onLoggedIn }: LoginPageProps) {
       const user = await fetchCurrentUser();
       if (!user) {
         setError(
-          'La API aceptÃ³ las credenciales pero el navegador no guardÃ³ la cookie de sesiÃ³n. ' +
-            'RevisÃ¡ COOKIE_SECURE en el .env si entrÃ¡s por http.',
+          'La API aceptó las credenciales pero el navegador no guardó la cookie de sesión. ' +
+            'Revisá COOKIE_SECURE en el .env si entrás por http.',
         );
         return;
       }
@@ -58,8 +58,8 @@ export function LoginPage({ onLoggedIn }: LoginPageProps) {
           void submit(event);
         }}
       >
-        <h1 id="login-title">GIA Â· Ingreso</h1>
-        <p className="login-subtitle">Plataforma de anotaciÃ³n de imÃ¡genes mÃ©dicas</p>
+        <h1 id="login-title">GIA · Ingreso</h1>
+        <p className="login-subtitle">Plataforma de anotación de imágenes médicas</p>
 
         <label>
           Usuario
@@ -78,7 +78,7 @@ export function LoginPage({ onLoggedIn }: LoginPageProps) {
         </label>
 
         <label>
-          ContraseÃ±a
+          Contraseña
           <input
             name="password"
             type="password"
@@ -100,7 +100,7 @@ export function LoginPage({ onLoggedIn }: LoginPageProps) {
         )}
 
         <button type="submit" className="primary" disabled={!canSubmit}>
-          {submitting ? 'Ingresandoâ€¦' : 'Ingresar'}
+          {submitting ? 'Ingresando…' : 'Ingresar'}
         </button>
       </form>
     </main>
