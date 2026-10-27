@@ -84,6 +84,32 @@ public class ConflictProblemException : GiaProblemException
     }
 }
 
+public class AlreadyImportedProblemException : GiaProblemException
+{
+    public AlreadyImportedProblemException(string source, string detail = "")
+        : base(
+            problemType: GiaProblemTypes.AlreadyImported,
+            statusCode: StatusCodes.Status409Conflict,
+            title: "Conflict",
+            detail: string.IsNullOrWhiteSpace(detail)
+                ? $"La fuente '{source}' ya fue importada previamente en este dataset."
+                : detail)
+    {
+    }
+}
+
+public class ImportTooLargeProblemException : GiaProblemException
+{
+    public ImportTooLargeProblemException(int count, int max = 2000)
+        : base(
+            problemType: GiaProblemTypes.ImportTooLarge,
+            statusCode: StatusCodes.Status422UnprocessableEntity,
+            title: "Unprocessable Entity",
+            detail: $"La importación contiene {count} imágenes, superando el límite permitido de {max} imágenes (ADR-09).")
+    {
+    }
+}
+
 public class UnprocessableEntityProblemException : GiaProblemException
 {
     public UnprocessableEntityProblemException(string slug, string detail)

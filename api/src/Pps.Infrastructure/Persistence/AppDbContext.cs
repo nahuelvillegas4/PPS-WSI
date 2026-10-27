@@ -5,6 +5,7 @@ using Pps.Domain.Auth;
 using Pps.Domain.Catalog;
 using Pps.Domain.Images;
 using Pps.Domain.Annotations;
+using Pps.Domain.Import;
 
 public class AppDbContext : DbContext
 {
@@ -16,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<LabelClass> LabelClasses => Set<LabelClass>();
     public DbSet<MedicalImage> Images => Set<MedicalImage>();
     public DbSet<Annotation> Annotations => Set<Annotation>();
+    public DbSet<ImportRecord> Imports => Set<ImportRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -135,6 +137,40 @@ public class AppDbContext : DbContext
 
             // Filtro global para borrado lógico (ADR-07)
             b.HasQueryFilter(a => a.DeletedAt == null);
+        });
+
+        // 7. Imports (ADR-09)
+        modelBuilder.Entity<ImportRecord>(b =>
+        {
+            b.HasKey(i => i.Id);
+
+            b.Property(i => i.Format).HasMaxLength(32).IsRequired();
+            b.Property(i => i.Source).HasMaxLength(256).IsRequired();
+
+            if (Database.IsNpgsql())
+            {
+                b.Property(i => i.ReportJson)
+                    .HasColumnType("jsonb")
+                    .IsRequired();
+            }
+            else
+            {
+                b.Property(i => i.ReportJson)
+                    .IsRequired();
+            }
+
+            b.HasOne(i => i.Dataset)
+                .WithMany()
+                .HasForeignKey(i => i.DatasetId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasOne(i => i.ImportedBy)
+                .WithMany()
+                .HasForeignKey(i => i.ImportedById)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Índice para acelerar consulta y verificación de fuentes ya importadas por dataset (409 already-imported)
+            b.HasIndex(i => new { i.DatasetId, i.Source });
         });
     }
 }

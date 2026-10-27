@@ -348,6 +348,84 @@ namespace Pps.Infrastructure.Persistence.Migrations
                     b.ToTable("images", (string)null);
                 });
 
+            modelBuilder.Entity("Pps.Domain.Import.ImportRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("AnnotationsCreated")
+                        .HasColumnType("integer")
+                        .HasColumnName("annotations_created");
+
+                    b.Property<int>("AnnotationsSkipped")
+                        .HasColumnType("integer")
+                        .HasColumnName("annotations_skipped");
+
+                    b.Property<int>("ClassesCreated")
+                        .HasColumnType("integer")
+                        .HasColumnName("classes_created");
+
+                    b.Property<int>("ClassesMatched")
+                        .HasColumnType("integer")
+                        .HasColumnName("classes_matched");
+
+                    b.Property<long>("DatasetId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("dataset_id");
+
+                    b.Property<string>("Format")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("format");
+
+                    b.Property<int>("ImagesFound")
+                        .HasColumnType("integer")
+                        .HasColumnName("images_found");
+
+                    b.Property<int>("ImagesRegistered")
+                        .HasColumnType("integer")
+                        .HasColumnName("images_registered");
+
+                    b.Property<int>("ImagesSkipped")
+                        .HasColumnType("integer")
+                        .HasColumnName("images_skipped");
+
+                    b.Property<DateTime>("ImportedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("imported_at");
+
+                    b.Property<long>("ImportedById")
+                        .HasColumnType("bigint")
+                        .HasColumnName("imported_by_id");
+
+                    b.Property<string>("ReportJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("report_json");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("source");
+
+                    b.HasKey("Id")
+                        .HasName("pk_imports");
+
+                    b.HasIndex("ImportedById")
+                        .HasDatabaseName("ix_imports_imported_by_id");
+
+                    b.HasIndex("DatasetId", "Source")
+                        .HasDatabaseName("ix_imports_dataset_id_source");
+
+                    b.ToTable("imports", (string)null);
+                });
+
             modelBuilder.Entity("Pps.Domain.Annotations.Annotation", b =>
                 {
                     b.HasOne("Pps.Domain.Auth.User", "Author")
@@ -423,6 +501,27 @@ namespace Pps.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_images_datasets_dataset_id");
 
                     b.Navigation("Dataset");
+                });
+
+            modelBuilder.Entity("Pps.Domain.Import.ImportRecord", b =>
+                {
+                    b.HasOne("Pps.Domain.Catalog.Dataset", "Dataset")
+                        .WithMany()
+                        .HasForeignKey("DatasetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_imports_datasets_dataset_id");
+
+                    b.HasOne("Pps.Domain.Auth.User", "ImportedBy")
+                        .WithMany()
+                        .HasForeignKey("ImportedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_imports_users_imported_by_id");
+
+                    b.Navigation("Dataset");
+
+                    b.Navigation("ImportedBy");
                 });
 
             modelBuilder.Entity("Pps.Domain.Catalog.Dataset", b =>

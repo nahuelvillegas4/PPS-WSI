@@ -9,7 +9,9 @@ using Pps.Api.Common.Security;
 using Pps.Domain.Auth;
 using Pps.Domain.Export;
 using Pps.Domain.Images;
+using Pps.Domain.Import;
 using Pps.Infrastructure.Export;
+using Pps.Infrastructure.Import;
 using Pps.Infrastructure.Persistence;
 using Pps.Infrastructure.Storage;
 
@@ -147,6 +149,10 @@ builder.Services.AddHttpClient<IImageInspector, TilesImageInspector>(client =>
 // 6. Servicio de exportación a JSON interno (ADR-10, Épica E9)
 builder.Services.AddScoped<IExporter, InternalJsonExporter>();
 builder.Services.AddScoped<InternalJsonExporter>();
+
+// 7. Adaptadores de importación (ADR-09, Épica E8)
+builder.Services.AddScoped<IAnnotationImporter, CricImporter>();
+builder.Services.AddScoped<CricImporter>();
 
 // 7. Manejo de Errores RFC 9457 con traceId y tipos URN (§8.5, §8.7)
 builder.Services.AddExceptionHandler<GiaExceptionHandler>();

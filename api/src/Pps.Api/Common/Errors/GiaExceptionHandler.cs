@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Pps.Domain.Annotations;
 using Pps.Domain.Images;
+using Pps.Domain.Import;
 
 public class GiaExceptionHandler : IExceptionHandler
 {
@@ -124,6 +125,36 @@ public class GiaExceptionHandler : IExceptionHandler
             statusCode = StatusCodes.Status400BadRequest;
             title = "Bad Request";
             detail = filterEx.Message;
+
+            _logger.LogWarning(exception, "GIA Problem [400] {Type}: {Detail} (traceId: {TraceId})",
+                problemType, detail, traceId);
+        }
+        else if (exception is AlreadyImportedException alreadyImportedEx)
+        {
+            problemType = GiaProblemTypes.AlreadyImported;
+            statusCode = StatusCodes.Status409Conflict;
+            title = "Conflict";
+            detail = alreadyImportedEx.Message;
+
+            _logger.LogWarning(exception, "GIA Problem [409] {Type}: {Detail} (traceId: {TraceId})",
+                problemType, detail, traceId);
+        }
+        else if (exception is ImportTooLargeException tooLargeEx)
+        {
+            problemType = GiaProblemTypes.ImportTooLarge;
+            statusCode = StatusCodes.Status422UnprocessableEntity;
+            title = "Unprocessable Entity";
+            detail = tooLargeEx.Message;
+
+            _logger.LogWarning(exception, "GIA Problem [422] {Type}: {Detail} (traceId: {TraceId})",
+                problemType, detail, traceId);
+        }
+        else if (exception is ImportValidationException importValEx)
+        {
+            problemType = GiaProblemTypes.Validation;
+            statusCode = StatusCodes.Status400BadRequest;
+            title = "Bad Request";
+            detail = importValEx.Message;
 
             _logger.LogWarning(exception, "GIA Problem [400] {Type}: {Detail} (traceId: {TraceId})",
                 problemType, detail, traceId);

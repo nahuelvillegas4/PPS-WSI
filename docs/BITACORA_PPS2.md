@@ -338,13 +338,73 @@ Las geometrías se guardan como `jsonb` en nivel 0 y la sesión es por cookie ([
 
 ---
 
-### Día 8 (Planificado para la próxima jornada): Cierre de Pruebas de Rendimiento I2 e Inicio del Módulo de Importación (CRIC)
-- **Fecha prevista:** 28/10/2026
+### Día 8: Cierre de Pruebas de Rendimiento I2, Modelo de Persistencia e Implementación del Importador CRIC (ADR-09)
+- **Fecha:** 28/10/2026
+- **Horas dedicadas:** 6 horas (Acumulado: 52 horas)
 - **Módulo:** Rendimiento y Calidad en WSI (Cierre I2) / Importación por Adaptadores (Épica E8, ADR-09)
+- **Actividades realizadas:**
+  1. **Consolidación de Escenarios de Calidad y Benchmarks WSI (QS-1 a QS-4 y QS-8):**
+     - Creación y ejecución de `scripts/bench-tiles.py` sobre `CMU-1-JP2K-33005.svs` (WSI de 46.000 × 32.893 px, 132,5 MB) desplegada en Docker Compose a través de la pasarela Nginx con `auth_request`:
+       - Apertura en frío (GET DZI): **11,62 ms** (objetivo contractual QS-4 $\le$ 1.000 ms).
+       - 500 peticiones aleatorias de teselas con 8 workers concurrentes: throughput de **149 teselas/s**, latencia p50 de **39,7 ms**, p90 de **104,6 ms** y p95 de **110,9 ms** (superando con holgura el objetivo QS-4 $\le$ 150 ms).
+       - Confidencialidad (QS-8): 401 Unauthorized sin cookie en DZI y teselas, y 404 Not Found ante solicitudes de imágenes asociadas no autorizadas (`/macro` y `/label`).
+     - Creación de suite de estrés y volumen `WsiPerformanceAndStressTests.cs` en xUnit:
+       - Rendimiento algorítmico: validación y cálculo de BBox/área de Gauss sobre 1.000 geometrías WSI en menos de 1 ms.
+       - Creación masiva persistida de 200 anotaciones en coordenadas de nivel 0 en 414 ms (2,07 ms/anotación) y consultas filtradas por autor (`author=me`) en 37 ms.
+  2. **Motor de Conversión `cricPointToBox` y Procedencia Contractual (`Pps.Domain.Import`):**
+     - Implementación de `CricPointToBoxConverter` con cálculo de centro, lado configurable `boxSize` (por defecto 100 px), recorte exacto a los límites de la imagen y discriminación determinista de `clipped: true/false`.
+     - Creación de pruebas unitarias `CricPointToBoxTests` con verificación al 100% contra los casos oficiales de `contract/fixtures/export.json`.
+  3. **Modelo de Persistencia para Importaciones (`ImportRecord` / tabla `imports`):**
+     - Creación de la entidad `ImportRecord` en el dominio y configuración en `AppDbContext` (columna `report_json` mapeada a `jsonb` en PostgreSQL 18, claves foráneas con eliminación restringida hacia `Dataset` y `User`, e índice compuesto en `(dataset_id, source)`).
+     - Generación y aplicación exitosa de la migración EF Core `20261027134318_AddImportsTable`.
+     - Implementación de excepciones de dominio y manejo estandarizado RFC 9457 en `GiaExceptionHandler`:
+       - Detección de re-importación: HTTP 409 Conflict (`urn:gia:problem:already-imported`) si la fuente ya fue importada en el dataset.
+       - Límite de escala: HTTP 422 Unprocessable Entity (`urn:gia:problem:import-too-large`) si el lote supera las 2.000 imágenes (ADR-09).
+  4. **Adaptador `CricImporter` y Controlador `ImportsController` (`POST /api/v1/datasets/{datasetId}/imports`):**
+     - Implementación del parser polivalente CSV/JSON `CricAnnotationsParser` tolerante a variantes de cabeceras de CRIC (`image_filename`, `cell_id`, `nucleus_x`, `nucleus_y`, `bethesda_system`).
+     - Trazabilidad y autoría mediante usuario sintético `import-cric` (`IsSystem = true`, rol `annotator`).
+     - Mapeo y catalogación automática de clases Bethesda (NILM, ASC-US, LSIL, ASC-H, HSIL, SCC) con colores institucionales y orden secuencial.
+     - Soporte para **simulación atómica con `dryRun: true`** (HTTP 200 OK, inspección técnica y cálculo de advertencias sin escribir ninguna fila en base de datos) y **ejecución atómica transaccional con `dryRun: false`** (HTTP 201 Created dentro de una única transacción de base de datos con generación de `ImportRecord` y asignación de `importId` en el `provenance` de cada figura).
+  5. **Verificación Automatizada e Integración de Punta a Punta en Docker Compose:**
+     - Suite xUnit en verde (54/54 tests pasando).
+     - Implementación del script de prueba integral `scripts/test_cric_import.py` validando todo el ciclo en caliente sobre los contenedores `gia-api` (.NET 10 LTS), `gia-tiles` (FastAPI + OpenSlide), `gia-db` (PostgreSQL 18) y `gia-gateway` (Nginx): simulación `dryRun`, persistencia atómica, consulta de anotaciones importadas, protección contra re-importación 409 y posterior exportación a JSON interno (`gia-annotations` v1.0).
+- **Entregables / Commits:**
+  - Archivos creados o modificados:
+    - `api/src/Pps.Domain/Import/ImportRecord.cs`
+    - `api/src/Pps.Domain/Import/ImportModels.cs`
+    - `api/src/Pps.Domain/Import/ImportExceptions.cs`
+    - `api/src/Pps.Domain/Import/IAnnotationImporter.cs`
+    - `api/src/Pps.Domain/Import/CricPointToBoxConverter.cs`
+    - `api/src/Pps.Domain/Import/CricAnnotationsParser.cs`
+    - `api/src/Pps.Infrastructure/Import/CricImporter.cs`
+    - `api/src/Pps.Infrastructure/Persistence/AppDbContext.cs`
+    - `api/src/Pps.Infrastructure/Persistence/Migrations/20261027134318_AddImportsTable.cs`
+    - `api/src/Pps.Infrastructure/Persistence/Migrations/20261027134318_AddImportsTable.Designer.cs`
+    - `api/src/Pps.Infrastructure/Persistence/Migrations/AppDbContextModelSnapshot.cs`
+    - `api/src/Pps.Api/Controllers/IO/ImportsController.cs`
+    - `api/src/Pps.Api/Common/Errors/GiaExceptions.cs`
+    - `api/src/Pps.Api/Common/Errors/GiaExceptionHandler.cs`
+    - `api/src/Pps.Api/Program.cs`
+    - `api/tests/Pps.Domain.Tests/WsiPerformanceAndStressTests.cs`
+    - `api/tests/Pps.Domain.Tests/CricPointToBoxTests.cs`
+    - `api/tests/Pps.Domain.Tests/CricImportTests.cs`
+    - `scripts/bench-tiles.py`
+    - `scripts/test_cric_import.py`
+    - `docs/BITACORA_PPS2.md`
+- **Dificultades y soluciones:**
+  - La serialización de `RectangleGeometry` como tipo estático concreto en el importador omitía el discriminador `"type": "rectangle"` generado por el polimorfismo de `Geometry`, disparando un error 500 al deserializar; se ajustó la serialización explícita tipada a `JsonSerializer.Serialize<Geometry>(...)` asegurando la presencia del discriminador contractual.
+  - Al persistir las anotaciones en la transacción final, el recálculo del núcleo a partir del centro de la caja provocaba discrepancias en cajas recortadas en los bordes; se corrigió preservando intacto el núcleo original del registro de origen en la estructura `CricProvenance` y actualizando únicamente el `ImportId` asignado.
+- **Estado:** Completado (Cierre definitivo de Incremento I2 y avance de Incremento I3).
+
+---
+
+### Día 9 (Planificado para la próxima jornada): Módulo de Exportación COCO / Formato Externo e Interoperabilidad (ADR-10, Épica E9)
+- **Fecha prevista:** 29/10/2026
+- **Módulo:** Exportación e Interoperabilidad (Épica E9, ADR-10)
 - **Tareas a realizar:**
-  1. Consolidación de mediciones de escenarios de calidad (QS-1 a QS-4 y QS-8) sobre volúmenes de cientos de anotaciones poligonales y rectangulares en imágenes WSI de nivel 0.
-  2. Diseño e implementación del modelo de persistencia de importaciones (`ImportRecord` / tabla `imports`) y del adaptador `CricImporter` (`IAnnotationImporter`) con soporte de conversión `cricPointToBox` (recorte a bordes de imagen y preservación del punto original en `provenance`).
-  3. Verificación contra los casos de prueba de `contract/fixtures/export.json` (`cricPointToBox`).
+  1. Diseño e implementación del exportador `CocoExporter` (`IExporter`) para detección de objetos (categorías, licencias, imágenes, anotaciones tipo bbox y segmentación poligonal).
+  2. Implementación de pruebas automatizadas contra fixtures oficiales de `contract/fixtures/export.json` (`cocoExample`).
+  3. Integración con el endpoint `GET /api/v1/datasets/{datasetId}/export?format=coco&authors=...` y validación de descargas con `Content-Disposition`.
 - **Estado:** Pendiente (Próxima jornada).
 
 ---
