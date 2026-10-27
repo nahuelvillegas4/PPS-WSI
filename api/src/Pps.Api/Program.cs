@@ -140,7 +140,7 @@ var tilesServiceUrl = builder.Configuration["TILES_SERVICE_URL"] ?? "http://tile
 builder.Services.AddHttpClient<IImageInspector, TilesImageInspector>(client =>
 {
     client.BaseAddress = new Uri(tilesServiceUrl);
-    client.Timeout = TimeSpan.FromSeconds(10);
+    client.Timeout = TimeSpan.FromSeconds(60);
 })
 .AddHttpMessageHandler<TraceIdDelegatingHandler>();
 

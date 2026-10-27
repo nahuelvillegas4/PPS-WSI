@@ -154,4 +154,16 @@ public class ValidationProblemException : GiaProblemException
             detail: detail)
     {
     }
+
+    public ValidationProblemException(
+        IDictionary<string, string[]> validationErrors,
+        string detail = "One or more validation errors occurred.")
+        : base(
+            problemType: GiaProblemTypes.Validation,
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "Validation Problem",
+            detail: detail,
+            validationErrors: validationErrors)
+    {
+    }
 }

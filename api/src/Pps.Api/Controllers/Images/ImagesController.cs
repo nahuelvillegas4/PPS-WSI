@@ -15,15 +15,18 @@ using Pps.Infrastructure.Persistence;
 public class ImagesController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IStorageService _storageService;
     private readonly IImageInspector _imageInspector;
     private readonly ILogger<ImagesController> _logger;
 
     public ImagesController(
         AppDbContext db,
+        IStorageService storageService,
         IImageInspector imageInspector,
         ILogger<ImagesController> logger)
     {
         _db = db;
+        _storageService = storageService;
         _imageInspector = imageInspector;
         _logger = logger;
     }
@@ -31,10 +34,10 @@ public class ImagesController : ControllerBase
     /// <summary>
     /// Registra archivos que ya están en el servidor dentro de un dataset.
     /// Operación atómica: si una imagen falla, no se registra ninguna.
-    /// Solo administradores.
+    /// Accesible para cualquier usuario autenticado (admin o annotator).
     /// </summary>
     [HttpPost("api/v1/datasets/{datasetId:long}/images")]
-    [Authorize(Roles = "admin")]
+    [Authorize]
     [ProducesResponseType(typeof(RegisterImagesResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -106,6 +109,158 @@ public class ImagesController : ControllerBase
 
         var items = newEntities.Select(MapToResponse).ToList();
         return StatusCode(StatusCodes.Status201Created, new RegisterImagesResponse { Items = items });
+    }
+
+    /// <summary>
+    /// Sube una o múltiples imágenes (SVS, PNG, JPG/JPEG) desde el cliente al almacenamiento del servidor
+    /// y las registra atómicamente como pertenecientes al dataset indicado.
+    /// Accesible para cualquier usuario autenticado (admin o annotator).
+    /// </summary>
+    [HttpPost("api/v1/datasets/{datasetId:long}/images/upload")]
+    [Authorize]
+    [Consumes("multipart/form-data")]
+    [DisableRequestSizeLimit]
+    [RequestFormLimits(MultipartBodyLengthLimit = 10L * 1024 * 1024 * 1024, ValueLengthLimit = int.MaxValue)]
+    [ProducesResponseType(typeof(RegisterImagesResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult<RegisterImagesResponse>> UploadImages(
+        [FromRoute] long datasetId,
+        [FromForm] List<IFormFile>? files,
+        CancellationToken cancellationToken)
+    {
+        var datasetExists = await _db.Datasets.AnyAsync(d => d.Id == datasetId, cancellationToken);
+        if (!datasetExists)
+        {
+            throw new NotFoundProblemException($"No se encontró el dataset con ID {datasetId}.");
+        }
+
+        var uploadedFiles = (files is { Count: > 0 })
+            ? files
+            : (Request.HasFormContentType ? Request.Form.Files.ToList() : new List<IFormFile>());
+
+        if (uploadedFiles.Count == 0)
+        {
+            throw new ValidationProblemException(new Dictionary<string, string[]>
+            {
+                ["files"] = new[] { "Se debe proporcionar al menos un archivo de imagen para subir." }
+            });
+        }
+
+        if (uploadedFiles.Count > 2000)
+        {
+            throw new ValidationProblemException(new Dictionary<string, string[]>
+            {
+                ["files"] = new[] { "Se permite subir un máximo de 2000 imágenes por lote." }
+            });
+        }
+
+        var emptyFiles = uploadedFiles.Where(f => f.Length <= 0).Select(f => f.FileName).ToList();
+        if (emptyFiles.Count > 0)
+        {
+            throw new ValidationProblemException(new Dictionary<string, string[]>
+            {
+                ["files"] = new[] { $"Los siguientes archivos están vacíos (0 bytes): {string.Join(", ", emptyFiles)}." }
+            });
+        }
+
+        // 1. Construir y validar claves de almacenamiento destino (datasets/{datasetId}/{fileName})
+        var fileEntries = new List<(IFormFile File, string StorageKey)>(uploadedFiles.Count);
+        foreach (var file in uploadedFiles)
+        {
+            var storageKey = StorageKeyValidator.BuildDatasetStorageKey(datasetId, file.FileName);
+            fileEntries.Add((file, storageKey));
+        }
+
+        var duplicateKeys = fileEntries
+            .GroupBy(x => x.StorageKey, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => Path.GetFileName(g.Key))
+            .ToList();
+
+        if (duplicateKeys.Count > 0)
+        {
+            throw new ValidationProblemException(new Dictionary<string, string[]>
+            {
+                ["files"] = new[] { $"No se permiten nombres de archivo duplicados en la misma subida: {string.Join(", ", duplicateKeys)}." }
+            });
+        }
+
+        var targetKeys = fileEntries.Select(x => x.StorageKey).ToList();
+
+        // 2. Verificar que ninguna clave ya esté registrada en este dataset (409 already-registered)
+        var existingKeys = await _db.Images
+            .AsNoTracking()
+            .Where(i => i.DatasetId == datasetId && targetKeys.Contains(i.StorageKey))
+            .Select(i => i.StorageKey)
+            .ToListAsync(cancellationToken);
+
+        if (existingKeys.Count > 0)
+        {
+            throw new ConflictProblemException(
+                "already-registered",
+                $"Las siguientes imágenes ya están registradas en este dataset: {string.Join(", ", existingKeys)}."
+            );
+        }
+
+        // 3. Guardar archivos en streaming e inspeccionar con el servicio de teselas (con rollback físico si falla)
+        var savedKeys = new List<string>(fileEntries.Count);
+        var inspections = new List<ImageInspectionResult>(fileEntries.Count);
+
+        try
+        {
+            foreach (var (file, storageKey) in fileEntries)
+            {
+                await using (var stream = file.OpenReadStream())
+                {
+                    await _storageService.SaveFileAsync(storageKey, stream, cancellationToken);
+                }
+                savedKeys.Add(storageKey);
+
+                var inspection = await _imageInspector.InspectAsync(storageKey, cancellationToken);
+                inspections.Add(inspection);
+            }
+
+            // 4. Persistencia atómica en base de datos vinculada al dataset
+            var newEntities = inspections.Select(ins => new MedicalImage
+            {
+                DatasetId = datasetId,
+                StorageKey = ins.StorageKey,
+                OriginalFilename = Path.GetFileName(ins.StorageKey),
+                Kind = ins.Kind,
+                Format = ins.Format,
+                WidthL0 = ins.Width,
+                HeightL0 = ins.Height,
+                LevelCount = ins.LevelCount,
+                MppX = ins.MppX,
+                MppY = ins.MppY,
+                CreatedAt = DateTime.UtcNow
+            }).ToList();
+
+            await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+            _db.Images.AddRange(newEntities);
+            await _db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "Se subieron y registraron {Count} imágenes en el dataset {DatasetId}: {Keys}",
+                newEntities.Count, datasetId, string.Join(", ", targetKeys));
+
+            var items = newEntities.Select(MapToResponse).ToList();
+            return StatusCode(StatusCodes.Status201Created, new RegisterImagesResponse { Items = items });
+        }
+        catch
+        {
+            foreach (var key in savedKeys)
+            {
+                _storageService.DeleteFile(key);
+            }
+            throw;
+        }
     }
 
     /// <summary>

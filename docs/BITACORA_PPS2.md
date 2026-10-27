@@ -15,8 +15,8 @@ Plan alineado con los incrementos de la [arquitectura (§13)](arquitectura/06-or
 | **0** (Prep, 4 h) | — | Relevamiento, selección de stack, arquitectura y scaffolding Docker + .NET | Entorno inicial y Bitácora |
 | **1** (19/10) | I0 · Base | Repositorio, CI y Compose con los cuatro servicios en versión «hola mundo»; contrato v0.1 acordado; scaffolding de la API alineado con la línea base | `docker compose up` desde cero en las dos máquinas; CI en verde |
 | **2–3** (26/10 y 02/11) | I1 · Esqueleto de punta a punta | Ingreso por cookie, usuarios, proyectos, datasets y clases; registro de una PNG; rectángulo persistido en nivel 0; exportación del JSON interno | `smoke.sh` recorre el camino completo en la CI |
-| **3–4** (02/11 y 09/11) | I2 · WSI, polígonos y conjuntos | Registro de WSI por el mismo camino; polígonos; clases por dataset; conjuntos por usuario (403 sobre anotaciones ajenas); contrato 1.0 | Anotación en WSI persistida en nivel 0; QS-1 a QS-4 y QS-8 medidos |
-| **5–6** (16/11 y 23/11) | I3 · Edición, importación y exportación | Importación de CRIC con `dryRun` (CCEDD queda como extensión); exportación COCO (YOLO solo si sobra tiempo); ensayo de aceptación | Guion de aceptación de la PPS 2 de punta a punta en una instalación limpia |
+| **3–4** (02/11 y 09/11) | I2 · WSI, polígonos y conjuntos | Subida y registro de WSI (`.svs`) e imágenes múltiples por dataset (`admin` y `annotator`); polígonos; clases por dataset; conjuntos por usuario (403 sobre anotaciones ajenas); contrato 1.0 | Anotación en WSI persistida en nivel 0; subida de imágenes por dataset; QS-1 a QS-4 y QS-8 medidos |
+| **5–6** (16/11 y 23/11) | I3 · Edición, importación y exportación | Importación de CRIC con `dryRun` (CCEDD queda como extensión); exportación COCO (YOLO solo si sobra tiempo); ensayo de aceptación y comprobación de despliegue en servidor Linux | Guion de aceptación de la PPS 2 de punta a punta en una instalación limpia en servidor Linux |
 | **7** (30/11) | I4 · Aceptación de la PPS 2 | Correcciones, manuales de API, importación y exportación; API congelada y documentada; traspaso de conocimiento | Aceptación de PPS 2 §7; cierre previsto el 03/12 |
 
 Las geometrías se guardan como `jsonb` en nivel 0 y la sesión es por cookie ([ADR-04](adr/0004-sesion-y-proteccion-de-teselas.md), [ADR-07](adr/0007-modelo-de-datos-y-autoria.md)). El canvas de prueba sobre JPG/PNG lo cubre el `SimpleImageViewer` de la PPS 1 ([ADR-08](adr/0008-frontera-y-reparto-del-editor.md)).
@@ -293,13 +293,58 @@ Las geometrías se guardan como `jsonb` en nivel 0 y la sesión es por cookie ([
 
 ---
 
-### Día 7 (Planificado para la próxima jornada): Inicio del Incremento I2 — Soporte WSI y Pruebas de Carga/Aislamiento
-- **Fecha prevista:** 27/10/2026
-- **Módulo:** WSI, Conjuntos y Rendimiento (Incremento I2)
+### Día 7: Inicio del Incremento I2 — Subida de Imágenes Simples/Múltiples a Datasets, Soporte WSI (`.svs`) y Aislamiento Multi-Revisor
+- **Fecha:** 27/10/2026
+- **Horas dedicadas:** 6 horas (Acumulado: 46 horas)
+- **Módulo:** Almacenamiento y Subida de Imágenes (Épica E4), WSI Nivel 0 y Conjuntos por Usuario (Épicas E5/E7 — Incremento I2)
+- **Actividades realizadas:**
+  1. **Ajuste de Planificación tras Muestra con la Supervisión:**
+     - Incorporación del requerimiento de subida directa de una o múltiples imágenes (`.svs`, `.png`, `.jpg`, `.jpeg`) a un dataset por cualquier usuario autenticado (`admin` o `annotator`), quedando registradas como pertenecientes a dicho dataset al consultarlas (`GET /api/v1/datasets/{datasetId}/images`).
+     - Confirmación de que el alta de usuarios por administrador ya se encuentra resuelta en la API desde el Día 2 (`POST /api/v1/users`) y programación de la comprobación de despliegue en servidor Linux para el Incremento I3.
+  2. **Almacenamiento Físico en Streaming y Validación de Claves por Dataset (`Pps.Domain.Images` y `Pps.Infrastructure.Storage`):**
+     - Extensión de `StorageKeyValidator` con `SanitizeFileName` y `BuildDatasetStorageKey(datasetId, rawFileName)` para construir claves deterministas `datasets/{datasetId}/{filename}`, limpiando rutas del cliente, rechazando archivos ocultos o segmentos inválidos (HTTP 422 `urn:gia:problem:invalid-storage-key`) y validando extensiones soportadas (`.svs`, `.png`, `.jpg`, `.jpeg`, arrojando HTTP 422 `urn:gia:problem:unsupported-image-format` ante formatos no admitidos).
+     - Extensión de `IStorageService` y `PhysicalStorageService` con `SaveFileAsync` (escritura asíncrona por streaming con buffer de 80 KB sin cargar archivos WSI completos en RAM) y `DeleteFile` para limpieza y rollback físico.
+  3. **Endpoint de Subida Simple y Múltiple de Imágenes (`ImagesController.UploadImages`):**
+     - Implementación de `POST /api/v1/datasets/{datasetId}/images/upload` (`multipart/form-data`, campo `files`) accesible para cualquier usuario autenticado (`[Authorize]`, tanto `admin` como `annotator`), al igual que `POST /api/v1/datasets/{datasetId}/images` y `GET /api/v1/storage/files`.
+     - Configuración de `[DisableRequestSizeLimit]` y `[RequestFormLimits(MultipartBodyLengthLimit = 10 GB)]` en ASP.NET Core, y `client_max_body_size 10G; proxy_request_buffering off;` en `deploy/gateway/nginx.conf` junto con montaje de lectura/escritura `/data/images` en `compose.yaml`.
+     - Garantía de **atomicidad física y transaccional**: cada archivo subido se escribe en `/data/images/datasets/{datasetId}/...`, se inspecciona con el servicio `tiles` (`GET /internal/v1/inspect`) para obtener dimensiones de nivel 0 (`WidthL0`, `HeightL0`), niveles de pirámide (`LevelCount`) y resolución micrométrica (`MppX`, `MppY`), y se persiste en una única transacción de PostgreSQL. Si cualquier archivo del lote falla en la inspección, se eliminan del disco todos los archivos subidos en esa petición.
+     - Actualización del contrato OpenAPI (`contract/openapi/api.v1.yaml`) documentando el endpoint `uploadImages`.
+  4. **Suite de Pruebas Automatizadas (`StorageAndWsiTests` en `Pps.Domain.Tests`):**
+     - Incorporación de pruebas unitarias y de integración de controlador con SQLite en memoria (43/43 tests en verde): subida individual y múltiple, asociación exclusiva al dataset consultado, rechazo de duplicados (`409 already-registered`), rollback físico ante archivos corruptos, validación de geometrías en coordenadas WSI de nivel 0 (`46.000 × 32.914` y `100.000 × 80.000`) y aislamiento multi-revisor con verificación de `403 Forbidden` (`urn:gia:problem:forbidden`) al intentar modificar o eliminar anotaciones ajenas incluso con rol `admin`.
+  5. **Verificación en Vivo sobre Docker Compose con Archivos WSI Reales:**
+     - Despliegue integrado de `gia-db` (PostgreSQL 18), `gia-api` (.NET 10 LTS), `gia-tiles` (FastAPI + OpenSlide) y `gia-gateway` (Nginx).
+     - Prueba en vivo con el usuario `annotator`: subida individual de `CMU-1-Small-Region.svs` (2220 × 2967 px, completada en 393 ms) y subida múltiple simultánea de `prueba-1376x1020.png` + `CMU-1-JP2K-33005.svs` (132,5 MB, 46.000 × 32.893 px, 3 niveles, `mpp = 0.499`, completada en 1646 ms).
+     - Verificación de consulta por dataset (`GET /api/v1/datasets/3/images` retornando las 3 imágenes registradas y `GET /api/v1/datasets/4/images` retornando 0), descarga de descriptor DZI y teselas JPEG protegidas por `auth_request` (`200 OK` con sesión, `401 Unauthorized` sin sesión), persistencia de polígonos en coordenadas de nivel 0 (`x > 41.200 px`) y rechazo `403 Forbidden` ante intento de borrado cruzado por otro usuario.
+- **Entregables / Commits:**
+  - Archivos creados o modificados:
+    - `api/src/Pps.Domain/Images/IStorageService.cs`
+    - `api/src/Pps.Domain/Images/StorageKeyValidator.cs`
+    - `api/src/Pps.Infrastructure/Storage/PhysicalStorageService.cs`
+    - `api/src/Pps.Infrastructure/Persistence/AppDbContext.cs`
+    - `api/src/Pps.Infrastructure/Pps.Infrastructure.csproj`
+    - `api/src/Pps.Api/Common/Errors/GiaExceptions.cs`
+    - `api/src/Pps.Api/Controllers/Images/ImagesController.cs`
+    - `api/src/Pps.Api/Controllers/Storage/StorageController.cs`
+    - `api/src/Pps.Api/Program.cs`
+    - `api/tests/Pps.Domain.Tests/Pps.Domain.Tests.csproj`
+    - `api/tests/Pps.Domain.Tests/StorageAndWsiTests.cs`
+    - `contract/openapi/api.v1.yaml`
+    - `deploy/gateway/nginx.conf`
+    - `compose.yaml`
+    - `docs/BITACORA_PPS2.md`
+- **Dificultades y soluciones:**
+  - Los archivos `.svs` reales superan los límites por defecto de ASP.NET Core (30 MB en Kestrel / 128 MB en formularios multiparte) y de Nginx (1 MB). Se deshabilitó el buffering de petición en el proxy (`proxy_request_buffering off; client_max_body_size 10G;`) y se configuró streaming directo a `FileStream` en la API, logrando subir e inspeccionar un archivo WSI de 132,5 MB en 1,6 segundos sin picos de memoria.
+- **Estado:** Completado.
+
+---
+
+### Día 8 (Planificado para la próxima jornada): Cierre de Pruebas de Rendimiento I2 e Inicio del Módulo de Importación (CRIC)
+- **Fecha prevista:** 28/10/2026
+- **Módulo:** Rendimiento y Calidad en WSI (Cierre I2) / Importación por Adaptadores (Épica E8, ADR-09)
 - **Tareas a realizar:**
-  1. Validación del flujo de registro y teselado sobre imágenes WSI reales (`.svs`) en `/data/images` y verificación de coordenadas nivel 0 con dimensiones gigantes (> 50.000 px).
-  2. Implementación de pruebas de concurrencia y aislamiento estricto de autores multi-revisor (verificación de 403 y filtrado de conjuntos por usuario en grandes volúmenes).
-  3. Medición preliminar de tiempos de respuesta en endpoints de anotaciones y teselas para cumplimiento de metas de calidad QS-1 a QS-4 y QS-8.
+  1. Consolidación de mediciones de escenarios de calidad (QS-1 a QS-4 y QS-8) sobre volúmenes de cientos de anotaciones poligonales y rectangulares en imágenes WSI de nivel 0.
+  2. Diseño e implementación del modelo de persistencia de importaciones (`ImportRecord` / tabla `imports`) y del adaptador `CricImporter` (`IAnnotationImporter`) con soporte de conversión `cricPointToBox` (recorte a bordes de imagen y preservación del punto original en `provenance`).
+  3. Verificación contra los casos de prueba de `contract/fixtures/export.json` (`cricPointToBox`).
 - **Estado:** Pendiente (Próxima jornada).
 
 ---

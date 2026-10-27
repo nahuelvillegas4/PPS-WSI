@@ -12,4 +12,6 @@ public interface IStorageService
     IReadOnlyList<StorageItem> ListFiles(string? prefix = null);
     bool FileExists(string storageKey);
     string GetFullPath(string storageKey);
+    Task<long> SaveFileAsync(string storageKey, Stream content, CancellationToken cancellationToken = default);
+    void DeleteFile(string storageKey);
 }

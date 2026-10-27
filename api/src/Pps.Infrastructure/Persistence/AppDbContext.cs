@@ -124,7 +124,14 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
 
             // Concurrencia optimista / token de versión (ADR-07, §8.2)
-            b.Property(a => a.Version).IsRowVersion();
+            if (Database.IsNpgsql())
+            {
+                b.Property(a => a.Version).IsRowVersion();
+            }
+            else
+            {
+                b.Property(a => a.Version).HasDefaultValue(1u);
+            }
 
             // Filtro global para borrado lógico (ADR-07)
             b.HasQueryFilter(a => a.DeletedAt == null);

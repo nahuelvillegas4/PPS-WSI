@@ -38,7 +38,7 @@ services:
       # desarrollo (Swagger); el puerto desaparece cuando termine la integración (ADR-11).
       - "${API_PORT:-8081}:8080"
     volumes:
-      - ${IMAGES_DIR:-./data/images}:/data/images:ro
+      - ${IMAGES_DIR:-./data/images}:/data/images
       - dpkeys:/keys
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]

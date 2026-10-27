@@ -370,7 +370,7 @@ paths:
     get:
       tags: [images]
       operationId: listStorageFiles
-      description: Solo administradores. Lista los archivos disponibles en el volumen de imágenes del servidor.
+      description: Lista los archivos disponibles en el volumen de imágenes del servidor. Accesible para usuarios autenticados (admin y annotator).
       parameters:
         - name: prefix
           in: query
@@ -415,8 +415,8 @@ paths:
       tags: [images]
       operationId: registerImages
       description: |
-        Solo administradores. Registra archivos que ya están en el servidor. La API obtiene los
-        metadatos técnicos del servicio de teselas (`GET /internal/v1/inspect`). Operación atómica:
+        Registra archivos que ya están en el servidor. Accesible para cualquier usuario autenticado (admin o annotator).
+        La API obtiene los metadatos técnicos del servicio de teselas (`GET /internal/v1/inspect`). Operación atómica:
         si una imagen falla, no se registra ninguna.
       requestBody:
         required: true
@@ -436,6 +436,49 @@ paths:
         '400': { $ref: '#/components/responses/ValidationProblem' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '503': { $ref: '#/components/responses/DependencyUnavailable' }
+
+  /api/v1/datasets/{datasetId}/images/upload:
+    parameters:
+      - $ref: '#/components/parameters/DatasetId'
+    post:
+      tags: [images]
+      operationId: uploadImages
+      description: |
+        Sube una o múltiples imágenes (`.svs`, `.png`, `.jpg`, `.jpeg`) al volumen del servidor
+        bajo `datasets/{datasetId}/{filename}`, inspecciona sus dimensiones y niveles en nivel 0
+        con el servicio de teselas (`GET /internal/v1/inspect`) y las registra atómicamente en el dataset.
+        Accesible para cualquier usuario autenticado (`admin` o `annotator`).
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  minItems: 1
+                  maxItems: 2000
+              required: [files]
+      responses:
+        '201':
+          description: Imágenes subidas y registradas en el dataset.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Image' } }
+                required: [items]
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/UnprocessableEntity' }

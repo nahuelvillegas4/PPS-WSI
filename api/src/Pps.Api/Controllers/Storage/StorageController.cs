@@ -8,7 +8,7 @@ using Pps.Domain.Images;
 using Pps.Infrastructure.Persistence;
 
 [ApiController]
-[Authorize(Roles = "admin")]
+[Authorize]
 [Produces("application/json")]
 [Tags("images")]
 public class StorageController : ControllerBase

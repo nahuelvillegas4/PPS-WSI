@@ -85,4 +85,44 @@ public class PhysicalStorageService : IStorageService
 
         return combined;
     }
+
+    public async Task<long> SaveFileAsync(string storageKey, Stream content, CancellationToken cancellationToken = default)
+    {
+        var fullPath = GetFullPath(storageKey);
+        var directory = Path.GetDirectoryName(fullPath);
+
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        await using var fileStream = new FileStream(
+            fullPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            bufferSize: 81920,
+            useAsync: true);
+
+        await content.CopyToAsync(fileStream, 81920, cancellationToken);
+        await fileStream.FlushAsync(cancellationToken);
+
+        return fileStream.Length;
+    }
+
+    public void DeleteFile(string storageKey)
+    {
+        try
+        {
+            var fullPath = GetFullPath(storageKey);
+            if (File.Exists(fullPath))
+            {
+                File.Delete(fullPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "No se pudo eliminar el archivo temporal/fallido '{StorageKey}'.", storageKey);
+        }
+    }
 }
