@@ -398,13 +398,57 @@ Las geometrías se guardan como `jsonb` en nivel 0 y la sesión es por cookie ([
 
 ---
 
-### Día 9 (Planificado para la próxima jornada): Módulo de Exportación COCO / Formato Externo e Interoperabilidad (ADR-10, Épica E9)
-- **Fecha prevista:** 29/10/2026
-- **Módulo:** Exportación e Interoperabilidad (Épica E9, ADR-10)
+### Día 9: Módulo de Exportación COCO, Formato Externo e Interoperabilidad (ADR-10, Épica E9)
+- **Fecha:** 29/10/2026
+- **Horas dedicadas:** 6 horas (Acumulado: 58 horas)
+- **Módulo:** Exportación e Interoperabilidad (Épica E9, ADR-10 — Incremento I3)
+- **Actividades realizadas:**
+  1. **Modelado Contractual de Formato COCO (`Pps.Domain.Export.Coco`):**
+     - Definición de records y modelos para el esquema estándar COCO Object Detection (`CocoExportDocument`, `CocoInfo`, `CocoLicense`, `CocoImage`, `CocoAnnotation`, `CocoCategory`) respetando la convención de nomenclatura snake_case para formatos externos (`image_id`, `category_id`, `file_name`, `date_created`, etc.) conforme a ADR-10 y §4.3.
+     - Implementación de `CocoGeometryConverter` con conversión estricta y determinista de geometrías de nivel 0:
+       - Rectángulos: `bbox` `[x, y, width, height]`, segmentación cerrada de 4 vértices en sentido horario `[[x, y, x+w, y, x+w, y+h, x, y+h]]` y cálculo de área `width * height`.
+       - Polígonos: `bbox` `[minX, minY, maxX - minX, maxY - minY]`, segmentación plana `[[x0, y0, x1, y1, ...]]` y cálculo de área mediante el algoritmo de Gauss / cordón de zapato.
+       - WSI: coordenadas de nivel 0 de imagen completa sin recortes (P16).
+  2. **Servicio de Exportación COCO (`CocoExporter` implementando `IExporter`):**
+     - Implementación de `CocoExporter` en `Pps.Infrastructure.Export` sobre PostgreSQL 18 con consultas optimizadas `AsNoTracking()`.
+     - Integración con `AuthorsFilterParser` para resolución determinista de filtros de autoría (`me`, `all`, o lista de IDs de usuario).
+     - Exclusión automática de anotaciones con borrado lógico (`deleted_at == null`).
+     - Mapeo de `file_name` referenciando la clave de almacenamiento (`storage_key`) sin duplicación de imágenes.
+     - Serialización UTF-8 con escape relajado (`UnsafeRelaxedJsonEscaping`) y generación de nombres de descarga normalizados `{slug}-coco.json`.
+  3. **Despacho Dinámico y Validación en `ExportController` (`GET /api/v1/datasets/{datasetId}/export`):**
+     - Refactorización de `ExportController` para inyectar colecciones de exportadores (`IEnumerable<IExporter>`), resolviendo dinámicamente `format=internal` y `format=coco`.
+     - Rechazo estricto con HTTP 422 Unprocessable Entity (`urn:gia:problem:unsupported-format`) ante peticiones de formato condicional `yolo`, indicando que su implementación está sujeta a disponibilidad de tiempo (ADR-10).
+     - Validación de formatos desconocidos con HTTP 400 (`urn:gia:problem:validation`).
+     - Registro de dependencias en el contenedor de servicios de `Program.cs`.
+  4. **Suite de Pruebas Automatizadas xUnit (`CocoExportTests` en `Pps.Domain.Tests`):**
+     - Pruebas unitarias de conversión geométrica verificando concordancia exacta (al 100%) contra las anotaciones y casos WSI del fixture contractual `contract/fixtures/export.json`.
+     - Verificación de exportación completa con SQLite en memoria: metadatos de dataset, orden de categorías por `display_order`, dimensiones WSI, inclusión de imágenes vacías como background, filtrado de anotaciones por autor y omisión de anotaciones borradas lógicamente (61/61 tests de la suite en verde).
+     - Pruebas de integración del controlador validando códigos HTTP (200, 400, 422) y cabeceras `Content-Disposition: attachment; filename="{slug}-coco.json"`.
+  5. **Script de Verificación de Integración de Punta a Punta:**
+     - Creación de `scripts/test_coco_export.py` para comprobación automatizada contra la API desplegada en Docker Compose a través de la pasarela Nginx.
+- **Entregables / Commits:**
+  - Archivos creados o modificados:
+    - `api/src/Pps.Domain/Export/Coco/CocoExportModels.cs`
+    - `api/src/Pps.Domain/Export/Coco/CocoGeometryConverter.cs`
+    - `api/src/Pps.Infrastructure/Export/CocoExporter.cs`
+    - `api/src/Pps.Api/Controllers/IO/ExportController.cs`
+    - `api/src/Pps.Api/Program.cs`
+    - `api/tests/Pps.Domain.Tests/CocoExportTests.cs`
+    - `scripts/test_coco_export.py`
+    - `docs/BITACORA_PPS2.md`
+- **Dificultades y soluciones:**
+  - `RectangleGeometry` declara sus propiedades `X`, `Y`, `Width`, `Height` como tipos que aceptan nulos (`double?`) para soportar la validación de esquemas de ASP.NET Core; se incorporó validación explícita de valores no nulos en `CocoGeometryConverter` previo al desempaquetado de coordenadas.
+- **Estado:** Completado.
+
+---
+
+### Día 10 (Planificado para la próxima jornada): Ciclo de Vida y Edición Avanzada de Anotaciones / Preparación de Aceptación I3 (Épica E7, ADR-07)
+- **Fecha prevista:** 30/10/2026
+- **Módulo:** Anotaciones y Edición (Épica E7, Incremento I3)
 - **Tareas a realizar:**
-  1. Diseño e implementación del exportador `CocoExporter` (`IExporter`) para detección de objetos (categorías, licencias, imágenes, anotaciones tipo bbox y segmentación poligonal).
-  2. Implementación de pruebas automatizadas contra fixtures oficiales de `contract/fixtures/export.json` (`cocoExample`).
-  3. Integración con el endpoint `GET /api/v1/datasets/{datasetId}/export?format=coco&authors=...` y validación de descargas con `Content-Disposition`.
+  1. Revisión de endpoints de actualización de geometrías (`PATCH /api/v1/annotations/{id}`): soporte integral para traslación de figuras, modificación de vértices de polígonos y reasignación de clases dentro del dataset.
+  2. Verificación de reglas de re-validación espacial (límites de nivel 0, autointersecciones y cálculo de nueva caja envolvente/área) y control estricto de concurrencia optimista (`If-Match` / `ETag`).
+  3. Diseño del guion y suite de aceptación integral para el cierre del Incremento I3.
 - **Estado:** Pendiente (Próxima jornada).
 
 ---

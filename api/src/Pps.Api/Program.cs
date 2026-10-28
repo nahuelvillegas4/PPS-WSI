@@ -146,9 +146,11 @@ builder.Services.AddHttpClient<IImageInspector, TilesImageInspector>(client =>
 })
 .AddHttpMessageHandler<TraceIdDelegatingHandler>();
 
-// 6. Servicio de exportación a JSON interno (ADR-10, Épica E9)
+// 6. Servicios de exportación (ADR-10, Épica E9)
 builder.Services.AddScoped<IExporter, InternalJsonExporter>();
+builder.Services.AddScoped<IExporter, CocoExporter>();
 builder.Services.AddScoped<InternalJsonExporter>();
+builder.Services.AddScoped<CocoExporter>();
 
 // 7. Adaptadores de importación (ADR-09, Épica E8)
 builder.Services.AddScoped<IAnnotationImporter, CricImporter>();
