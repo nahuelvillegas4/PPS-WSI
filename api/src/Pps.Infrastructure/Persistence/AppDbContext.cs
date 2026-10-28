@@ -173,4 +173,30 @@ public class AppDbContext : DbContext
             b.HasIndex(i => new { i.DatasetId, i.Source });
         });
     }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        IncrementVersionForModifiedAnnotations();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    public override int SaveChanges()
+    {
+        IncrementVersionForModifiedAnnotations();
+        return base.SaveChanges();
+    }
+
+    private void IncrementVersionForModifiedAnnotations()
+    {
+        if (!Database.IsNpgsql())
+        {
+            foreach (var entry in ChangeTracker.Entries<Annotation>())
+            {
+                if (entry.State == EntityState.Modified)
+                {
+                    entry.Entity.Version++;
+                }
+            }
+        }
+    }
 }

@@ -442,13 +442,50 @@ Las geometrías se guardan como `jsonb` en nivel 0 y la sesión es por cookie ([
 
 ---
 
-### Día 10 (Planificado para la próxima jornada): Ciclo de Vida y Edición Avanzada de Anotaciones / Preparación de Aceptación I3 (Épica E7, ADR-07)
-- **Fecha prevista:** 30/10/2026
-- **Módulo:** Anotaciones y Edición (Épica E7, Incremento I3)
+### Día 10: Ciclo de Vida y Edición Avanzada de Anotaciones / Cierre de Incremento I3 (Épica E7, ADR-07)
+- **Fecha:** 30/10/2026
+- **Horas dedicadas:** 6 horas (Acumulado: 64 horas)
+- **Módulo:** Ciclo de Vida y Edición de Anotaciones / Ensayo de Aceptación (Épica E7, ADR-07 — Cierre de Incremento I3)
+- **Actividades realizadas:**
+  1. **Consolidación del Endpoint de Edición y Ciclo de Vida (`PATCH /api/v1/annotations/{id}`):**
+     - Verificación del soporte integral para traslación de rectángulos y modificación/agregado/eliminación de vértices en polígonos sobre coordenadas de nivel 0.
+     - Implementación y chequeo del recálculo determinista de caja envolvente (`BboxMinX/Y`, `BboxMaxX/Y`) y área en nivel 0 (algoritmo de Gauss para polígonos y producto cartesiano para rectángulos).
+     - Validación del cambio de clase (`classId`): verificación de pertenencia al mismo dataset (`ClassNotInDatasetException` con HTTP 422 `urn:gia:problem:class-not-in-dataset`).
+     - Re-validación espacial estricta de geometrías modificadas contra las dimensiones de la imagen (HTTP 422 ante `geometry-out-of-bounds`, `geometry-self-intersection` o `geometry-degenerate`).
+  2. **Control Estricto de Concurrencia Optimista y Aislamiento Multi-Revisor (ADR-07):**
+     - Manejo riguroso de cabecera `If-Match`: rechazo con HTTP 428 (`urn:gia:problem:precondition-required`) si falta o está vacía; rechazo con HTTP 412 (`urn:gia:problem:version-mismatch`) si difiere de la versión vigente; soporte para formato de ETag con comillas, sin comillas o formato débil `W/"..."`.
+     - Renovación garantizada de `ETag` en la cabecera de respuesta ante cada modificación exitosa.
+     - Simulación de auto-incremento de `annotation.Version` en el `AppDbContext` para entornos en memoria (SQLite) emulando fielmente el comportamiento de la pseudocolumna `xmin` de PostgreSQL 18.
+     - Verificación del aislamiento multi-revisor: rechazo con HTTP 403 Forbidden ante cualquier intento de edición o borrado por parte de otro usuario (incluso con rol administrador).
+  3. **Borrado Lógico y Exclusión en Consultas (`DELETE /api/v1/annotations/{id}`):**
+     - Marcado de `DeletedAt = DateTime.UtcNow` con respuesta HTTP 204 No Content.
+     - Verificación de cabecera opcional `If-Match` en borrado (HTTP 412 si se especifica y diverge).
+     - Validación de exclusión automática mediante el filtro global de EF Core: consultas posteriores devuelven HTTP 404 Not Found, omisión en el listado por imagen (`GET /api/v1/images/{id}/annotations`) y omisión en los exportadores.
+  4. **Batería de Pruebas Automatizadas xUnit (`AnnotationLifecycleAndConcurrencyTests.cs`):**
+     - Incorporación de 7 pruebas exhaustivas en `Pps.Domain.Tests`: mutación de rectángulos, mutación de polígonos, rechazo por violaciones geométricas (422), reasignación de clases (200 y 422), concurrencia optimista (428/412/200), aislamiento multi-revisor (403) y borrado lógico (204/404).
+     - Ejecución exitosa de la suite completa del proyecto (68/68 pruebas en verde).
+  5. **Diseño y Construcción del Ensayo de Aceptación Integral I3 (`scripts/test_acceptance_i3.py`):**
+     - Creación del script de aceptación de punta a punta que cubre la totalidad de requisitos exigidos por el criterio de salida del Incremento I3 (PPS 2 §7): autenticación, roles, catálogo, anotación en nivel 0, concurrencia ETag/If-Match, mutación de figuras, borrado lógico, importación CRIC con `dryRun` y exportación interoperable interna y COCO.
+- **Entregables / Commits:**
+  - Archivos creados o modificados:
+    - `api/src/Pps.Infrastructure/Persistence/AppDbContext.cs`
+    - `api/src/Pps.Api/Controllers/Annotations/AnnotationsController.cs`
+    - `api/tests/Pps.Domain.Tests/AnnotationLifecycleAndConcurrencyTests.cs`
+    - `scripts/test_acceptance_i3.py`
+    - `docs/BITACORA_PPS2.md`
+- **Dificultades y soluciones:**
+  - En SQLite, la versión no muta automáticamente al no disponer de la columna del sistema `xmin` de PostgreSQL; se implementó una sobreescritura de `SaveChangesAsync` y `SaveChanges` en `AppDbContext` que detecta entidades `Annotation` modificadas e incrementa su versión cuando el proveedor de base de datos no es Npgsql, permitiendo pruebas unitarias fieles de concurrencia optimista.
+- **Estado:** Completado (Cierre formal de Incremento I3).
+
+---
+
+### Día 11 (Planificado para la próxima jornada): Preparación de Aceptación Formal de la PPS 2 y Documentación Final (Incremento I4, PPS 2 §7)
+- **Fecha prevista:** 02/11/2026
+- **Módulo:** Cierre y Aceptación Formal (Incremento I4, PPS 2 §7, ADR-11)
 - **Tareas a realizar:**
-  1. Revisión de endpoints de actualización de geometrías (`PATCH /api/v1/annotations/{id}`): soporte integral para traslación de figuras, modificación de vértices de polígonos y reasignación de clases dentro del dataset.
-  2. Verificación de reglas de re-validación espacial (límites de nivel 0, autointersecciones y cálculo de nueva caja envolvente/área) y control estricto de concurrencia optimista (`If-Match` / `ETag`).
-  3. Diseño del guion y suite de aceptación integral para el cierre del Incremento I3.
+  1. Congelamiento y verificación final de la OpenAPI 3.0 de la API (`contract/openapi/api.v1.yaml`).
+  2. Redacción de manuales operativos para administradores y desarrolladores (guía de despliegue con Docker Compose, importación CRIC y exportación COCO).
+  3. Ejecución del guion de aceptación en entorno limpio y registro de traspaso de conocimiento hacia PPS 1.
 - **Estado:** Pendiente (Próxima jornada).
 
 ---

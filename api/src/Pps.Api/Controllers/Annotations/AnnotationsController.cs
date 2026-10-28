@@ -245,7 +245,13 @@ public class AnnotationsController : ControllerBase
         }
 
         // 4. Validar versión optimista If-Match
-        var cleanIfMatch = ifMatch.Trim('\"', ' ');
+        var cleanIfMatch = ifMatch.Trim();
+        if (cleanIfMatch.StartsWith("W/", StringComparison.OrdinalIgnoreCase))
+        {
+            cleanIfMatch = cleanIfMatch[2..].Trim();
+        }
+        cleanIfMatch = cleanIfMatch.Trim('\"', ' ');
+
         if (!uint.TryParse(cleanIfMatch, out var expectedVersion) || annotation.Version != expectedVersion)
         {
             throw new PreconditionFailedProblemException(
@@ -337,7 +343,13 @@ public class AnnotationsController : ControllerBase
         var ifMatch = Request.Headers.IfMatch.ToString();
         if (!string.IsNullOrWhiteSpace(ifMatch))
         {
-            var cleanIfMatch = ifMatch.Trim('\"', ' ');
+            var cleanIfMatch = ifMatch.Trim();
+            if (cleanIfMatch.StartsWith("W/", StringComparison.OrdinalIgnoreCase))
+            {
+                cleanIfMatch = cleanIfMatch[2..].Trim();
+            }
+            cleanIfMatch = cleanIfMatch.Trim('\"', ' ');
+
             if (!uint.TryParse(cleanIfMatch, out var expectedVersion) || annotation.Version != expectedVersion)
             {
                 throw new PreconditionFailedProblemException(
