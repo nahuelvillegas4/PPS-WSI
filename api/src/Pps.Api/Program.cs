@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Pps.Api.Common.Access;
 using Pps.Api.Common.Errors;
 using Pps.Api.Common.Middleware;
 using Pps.Api.Common.Security;
@@ -88,7 +89,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         };
     });
 
-builder.Services.AddAuthorization();
+// Autorización por proyecto (ADR-16): lector de membresía, puerta, filtro global y política de respaldo
+builder.Services.AddAccessControl();
 
 // Servicios de autenticación y seguridad
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();

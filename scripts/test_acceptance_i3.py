@@ -81,10 +81,11 @@ def main():
     pwd = "Password123!"
 
     # Crear revisor A
+    # Rol global 'user' (ADR-15): el rol de anotador se asigna después, por proyecto.
     res_a = requests.post(f"{BASE_URL}/api/v1/users", json={
         "username": user_a_name,
         "password": pwd,
-        "role": "annotator"
+        "role": "user"
     }, cookies=admin_cookies)
     assert res_a.status_code in [201, 409], f"Error al crear usuario A: {res_a.status_code} {res_a.text}"
 
@@ -92,7 +93,7 @@ def main():
     res_b = requests.post(f"{BASE_URL}/api/v1/users", json={
         "username": user_b_name,
         "password": pwd,
-        "role": "annotator"
+        "role": "user"
     }, cookies=admin_cookies)
     assert res_b.status_code in [201, 409], f"Error al crear usuario B: {res_b.status_code} {res_b.text}"
 
@@ -171,6 +172,7 @@ def main():
                     imgs = requests.get(f"{API_CATALOG}/datasets/{d['id']}/images", cookies=admin_cookies).json().get("items", [])
                     if imgs:
                         image_id = imgs[0]["id"]
+                        project_id = p["id"]
                         dataset_id = d["id"]
                         classes = requests.get(f"{API_CATALOG}/datasets/{dataset_id}/classes", cookies=admin_cookies).json().get("items", [])
                         class_normal_id = classes[0]["id"]
@@ -185,6 +187,16 @@ def main():
         img_height = img_detail.get("height", 1536)
 
     log_ok(f"Imagen disponible: ID {image_id} ({img_width} x {img_height} px en Nivel 0).")
+
+    # Roles por proyecto (ADR-15/16): los revisores son usuarios globales 'user' y solo operan en los
+    # proyectos donde son miembros, así que se los asigna como anotadores del proyecto de la imagen.
+    for member_name in (user_a_name, user_b_name):
+        member_res = requests.post(f"{API_CATALOG}/projects/{project_id}/members", json={
+            "username": member_name,
+            "role": "annotator"
+        }, cookies=admin_cookies)
+        assert member_res.status_code in [201, 409], f"Error al asignar a {member_name} al proyecto: {member_res.status_code} {member_res.text}"
+    log_ok(f"Revisores asignados como anotadores del proyecto ID {project_id}.")
 
     # -------------------------------------------------------------------------
     # 5. Creación de Anotaciones en Nivel 0 (Rectángulo y Polígono)

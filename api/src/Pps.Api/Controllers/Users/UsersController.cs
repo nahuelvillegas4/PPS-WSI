@@ -1,9 +1,9 @@
 namespace Pps.Api.Controllers.Users;
 
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Pps.Api.Common.Access;
 using Pps.Api.Common.Errors;
 using Pps.Api.Controllers.Users.Dtos;
 using Pps.Domain.Auth;
@@ -11,7 +11,7 @@ using Pps.Infrastructure.Persistence;
 
 [ApiController]
 [Route("api/v1/users")]
-[Authorize(Roles = "admin")]
+[RequireGlobalAdmin]
 [Produces("application/json")]
 public class UsersController : ControllerBase
 {

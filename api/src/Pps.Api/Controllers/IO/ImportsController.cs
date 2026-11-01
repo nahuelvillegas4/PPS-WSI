@@ -1,14 +1,14 @@
 namespace Pps.Api.Controllers.IO;
 
 using System.Security.Claims;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pps.Api.Common.Access;
 using Pps.Api.Common.Errors;
 using Pps.Domain.Import;
 
 [ApiController]
 [Route("api/v1/datasets/{datasetId:long}/imports")]
-[Authorize(Roles = "admin")]
+[RequireGlobalAdmin]
 [Produces("application/json")]
 [Tags("io")]
 public class ImportsController : ControllerBase

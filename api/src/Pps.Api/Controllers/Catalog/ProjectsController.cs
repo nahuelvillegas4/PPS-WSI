@@ -1,16 +1,17 @@
 namespace Pps.Api.Controllers.Catalog;
 
-using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Pps.Api.Common.Access;
 using Pps.Api.Common.Errors;
 using Pps.Api.Controllers.Catalog.Dtos;
+using Pps.Domain.Access;
 using Pps.Domain.Catalog;
 using Pps.Infrastructure.Persistence;
 
 [ApiController]
 [Route("api/v1/projects")]
-[Authorize]
 [Produces("application/json")]
 public class ProjectsController : ControllerBase
 {
@@ -24,32 +25,56 @@ public class ProjectsController : ControllerBase
     }
 
     /// <summary>
-    /// Lista todos los proyectos.
+    /// Lista los proyectos visibles para la sesión: todos para el administrador global; para el resto, solo
+    /// aquellos de los que es miembro. Cada proyecto incluye el rol de la sesión (<c>myRole</c>).
     /// </summary>
     [HttpGet]
+    [AuthenticatedOnly]
     [ProducesResponseType(typeof(ProjectListResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ProjectListResponse>> ListProjects()
     {
-        var projects = await _db.Projects
-            .OrderBy(p => p.Id)
-            .Select(p => new ProjectResponse
+        if (User.IsInRole(GlobalRoles.Admin))
+        {
+            var all = await _db.Projects
+                .AsNoTracking()
+                .OrderBy(p => p.Id)
+                .ToListAsync();
+
+            return Ok(new ProjectListResponse
             {
-                Id = p.Id,
-                Name = p.Name,
-                Description = p.Description,
-                CreatedAt = p.CreatedAt
-            })
+                Items = all.Select(p => MapToResponse(p, ProjectRole.ProjectAdmin)).ToList()
+            });
+        }
+
+        var userId = GetCurrentUserId();
+        var memberships = await _db.ProjectMembers
+            .AsNoTracking()
+            .Where(m => m.UserId == userId)
+            .OrderBy(m => m.ProjectId)
+            .Select(m => new { m.Project!.Id, m.Project.Name, m.Project.Description, m.Project.CreatedAt, m.Role })
             .ToListAsync();
 
-        return Ok(new ProjectListResponse { Items = projects });
+        return Ok(new ProjectListResponse
+        {
+            Items = memberships
+                .Select(m => new ProjectResponse
+                {
+                    Id = m.Id,
+                    Name = m.Name,
+                    Description = m.Description,
+                    CreatedAt = m.CreatedAt,
+                    MyRole = ProjectRoles.ToWire(m.Role)
+                })
+                .ToList()
+        });
     }
 
     /// <summary>
-    /// Crea un nuevo proyecto. Solo administradores.
+    /// Crea un nuevo proyecto. Solo el administrador global.
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = "admin")]
+    [RequireGlobalAdmin]
     [ProducesResponseType(typeof(ProjectResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -75,21 +100,15 @@ public class ProjectsController : ControllerBase
 
         _logger.LogInformation("Proyecto '{Name}' (ID: {ProjectId}) creado exitosamente.", project.Name, project.Id);
 
-        var response = new ProjectResponse
-        {
-            Id = project.Id,
-            Name = project.Name,
-            Description = project.Description,
-            CreatedAt = project.CreatedAt
-        };
-
-        return Created($"/api/v1/projects/{project.Id}", response);
+        // Quien crea un proyecto es el administrador global: es project-admin implícito.
+        return Created($"/api/v1/projects/{project.Id}", MapToResponse(project, ProjectRole.ProjectAdmin));
     }
 
     /// <summary>
-    /// Obtiene un proyecto por su identificador.
+    /// Obtiene un proyecto por su identificador. Requiere ser miembro (mínimo viewer) o administrador global.
     /// </summary>
     [HttpGet("{projectId:long}")]
+    [RequirePermission(Permission.ProjectView)]
     [ProducesResponseType(typeof(ProjectResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -101,20 +120,37 @@ public class ProjectsController : ControllerBase
             throw new NotFoundProblemException($"No se encontró el proyecto con ID {projectId}.");
         }
 
-        return Ok(new ProjectResponse
+        ProjectRole myRole;
+        if (User.IsInRole(GlobalRoles.Admin))
         {
-            Id = project.Id,
-            Name = project.Name,
-            Description = project.Description,
-            CreatedAt = project.CreatedAt
-        });
+            myRole = ProjectRole.ProjectAdmin;
+        }
+        else
+        {
+            var userId = GetCurrentUserId();
+            var memberRole = await _db.ProjectMembers
+                .AsNoTracking()
+                .Where(m => m.ProjectId == projectId && m.UserId == userId)
+                .Select(m => (ProjectRole?)m.Role)
+                .FirstOrDefaultAsync();
+
+            if (memberRole is not { } role)
+            {
+                // El filtro de acceso ya oculta los proyectos ajenos; esto solo cubre una llamada que lo evite.
+                throw new NotFoundProblemException($"No se encontró el proyecto con ID {projectId}.");
+            }
+
+            myRole = role;
+        }
+
+        return Ok(MapToResponse(project, myRole));
     }
 
     /// <summary>
-    /// Actualiza el nombre o descripción de un proyecto. Solo administradores.
+    /// Actualiza el nombre o descripción de un proyecto. Solo el administrador global.
     /// </summary>
     [HttpPatch("{projectId:long}")]
-    [Authorize(Roles = "admin")]
+    [RequireGlobalAdmin]
     [ProducesResponseType(typeof(ProjectResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -150,20 +186,14 @@ public class ProjectsController : ControllerBase
 
         _logger.LogInformation("Proyecto ID {ProjectId} actualizado.", project.Id);
 
-        return Ok(new ProjectResponse
-        {
-            Id = project.Id,
-            Name = project.Name,
-            Description = project.Description,
-            CreatedAt = project.CreatedAt
-        });
+        return Ok(MapToResponse(project, ProjectRole.ProjectAdmin));
     }
 
     /// <summary>
-    /// Elimina un proyecto. Solo administradores. Falla con 409 si contiene datasets (ADR-07).
+    /// Elimina un proyecto. Solo el administrador global. Falla con 409 si contiene datasets (ADR-07).
     /// </summary>
     [HttpDelete("{projectId:long}")]
-    [Authorize(Roles = "admin")]
+    [RequireGlobalAdmin]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -190,4 +220,24 @@ public class ProjectsController : ControllerBase
 
         return NoContent();
     }
+
+    private long GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!long.TryParse(userIdClaim, out var userId))
+        {
+            throw new UnauthenticatedProblemException("Sesión no válida o ausente.");
+        }
+
+        return userId;
+    }
+
+    private static ProjectResponse MapToResponse(Project project, ProjectRole myRole) => new()
+    {
+        Id = project.Id,
+        Name = project.Name,
+        Description = project.Description,
+        CreatedAt = project.CreatedAt,
+        MyRole = ProjectRoles.ToWire(myRole)
+    };
 }

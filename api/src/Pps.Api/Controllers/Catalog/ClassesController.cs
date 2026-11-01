@@ -1,15 +1,15 @@
 namespace Pps.Api.Controllers.Catalog;
 
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Pps.Api.Common.Access;
 using Pps.Api.Common.Errors;
 using Pps.Api.Controllers.Catalog.Dtos;
+using Pps.Domain.Access;
 using Pps.Domain.Catalog;
 using Pps.Infrastructure.Persistence;
 
 [ApiController]
-[Authorize]
 [Produces("application/json")]
 public class ClassesController : ControllerBase
 {
@@ -26,6 +26,7 @@ public class ClassesController : ControllerBase
     /// Lista las clases del dataset ordenadas por displayOrder y luego por id.
     /// </summary>
     [HttpGet("api/v1/datasets/{datasetId:long}/classes")]
+    [RequirePermission(Permission.ProjectView)]
     [ProducesResponseType(typeof(LabelClassListResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -55,10 +56,10 @@ public class ClassesController : ControllerBase
     }
 
     /// <summary>
-    /// Crea una nueva clase en el dataset. Solo administradores. 409 si el nombre ya existe en el dataset.
+    /// Crea una nueva clase en el dataset. Requiere administrador del proyecto. 409 si el nombre ya existe en el dataset.
     /// </summary>
     [HttpPost("api/v1/datasets/{datasetId:long}/classes")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.CatalogManage)]
     [ProducesResponseType(typeof(LabelClassResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -107,10 +108,10 @@ public class ClassesController : ControllerBase
     }
 
     /// <summary>
-    /// Actualiza una clase de etiquetado. Solo administradores.
+    /// Actualiza una clase de etiquetado. Requiere administrador del proyecto.
     /// </summary>
     [HttpPatch("api/v1/classes/{classId:long}")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.CatalogManage)]
     [ProducesResponseType(typeof(LabelClassResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -167,10 +168,10 @@ public class ClassesController : ControllerBase
     }
 
     /// <summary>
-    /// Elimina una clase de etiquetado. Solo administradores. Falla con 409 (class-in-use) si la clase tiene anotaciones.
+    /// Elimina una clase de etiquetado. Requiere administrador del proyecto. Falla con 409 (class-in-use) si la clase tiene anotaciones.
     /// </summary>
     [HttpDelete("api/v1/classes/{classId:long}")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.CatalogManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]

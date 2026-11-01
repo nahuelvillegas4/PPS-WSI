@@ -1,11 +1,12 @@
 namespace Pps.Api.Controllers.Images;
 
 using System.ComponentModel.DataAnnotations;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Pps.Api.Common.Access;
 using Pps.Api.Common.Errors;
 using Pps.Api.Controllers.Images.Dtos;
+using Pps.Domain.Access;
 using Pps.Domain.Images;
 using Pps.Infrastructure.Persistence;
 
@@ -34,10 +35,10 @@ public class ImagesController : ControllerBase
     /// <summary>
     /// Registra archivos que ya están en el servidor dentro de un dataset.
     /// Operación atómica: si una imagen falla, no se registra ninguna.
-    /// Accesible para cualquier usuario autenticado (admin o annotator).
+    /// Solo el administrador global: expone el volumen del servidor (los demás suben desde su computadora).
     /// </summary>
     [HttpPost("api/v1/datasets/{datasetId:long}/images")]
-    [Authorize]
+    [RequireGlobalAdmin]
     [ProducesResponseType(typeof(RegisterImagesResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -114,10 +115,10 @@ public class ImagesController : ControllerBase
     /// <summary>
     /// Sube una o múltiples imágenes (SVS, PNG, JPG/JPEG) desde el cliente al almacenamiento del servidor
     /// y las registra atómicamente como pertenecientes al dataset indicado.
-    /// Accesible para cualquier usuario autenticado (admin o annotator).
+    /// Requiere administrador del proyecto (permiso image.upload).
     /// </summary>
     [HttpPost("api/v1/datasets/{datasetId:long}/images/upload")]
-    [Authorize]
+    [RequirePermission(Permission.ImageUpload)]
     [Consumes("multipart/form-data")]
     [DisableRequestSizeLimit]
     [RequestFormLimits(MultipartBodyLengthLimit = 10L * 1024 * 1024 * 1024, ValueLengthLimit = int.MaxValue)]
@@ -267,7 +268,7 @@ public class ImagesController : ControllerBase
     /// Lista de forma paginada las imágenes pertenecientes a un dataset.
     /// </summary>
     [HttpGet("api/v1/datasets/{datasetId:long}/images")]
-    [Authorize]
+    [RequirePermission(Permission.ProjectView)]
     [ProducesResponseType(typeof(ImagePageResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -310,7 +311,7 @@ public class ImagesController : ControllerBase
     /// Consulta los metadatos técnicos de una imagen y su URL de fuente DZI.
     /// </summary>
     [HttpGet("api/v1/images/{imageId:long}")]
-    [Authorize]
+    [RequirePermission(Permission.ProjectView)]
     [ProducesResponseType(typeof(ImageResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

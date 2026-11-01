@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Pps.Api.Common.Access;
 using Pps.Api.Common.Errors;
 using Pps.Api.Common.Security;
 using Pps.Api.Controllers.Auth.Dtos;
@@ -105,7 +106,7 @@ public class AuthController : ControllerBase
     /// Cierra la sesión revocando la cookie gia_session.
     /// </summary>
     [HttpPost("logout")]
-    [Authorize]
+    [AuthenticatedOnly]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Logout()
@@ -118,7 +119,7 @@ public class AuthController : ControllerBase
     /// Obtiene la información del usuario de la sesión actual.
     /// </summary>
     [HttpGet("me")]
-    [Authorize]
+    [AuthenticatedOnly]
     [ProducesResponseType(typeof(CurrentUserResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<CurrentUserResponse>> GetCurrentUser()

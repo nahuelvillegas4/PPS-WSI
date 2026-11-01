@@ -1,6 +1,7 @@
 namespace Pps.Api.Controllers.Users.Dtos;
 
 using System.ComponentModel.DataAnnotations;
+using Pps.Domain.Access;
 
 public class CreateUserRequest
 {
@@ -13,6 +14,6 @@ public class CreateUserRequest
     public string Password { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "The role field is required.")]
-    [RegularExpression("^(admin|annotator)$", ErrorMessage = "The role must be either 'admin' or 'annotator'.")]
+    [RegularExpression(GlobalRoles.Pattern, ErrorMessage = "The role must be either 'admin' or 'user'.")]
     public string Role { get; set; } = string.Empty;
 }

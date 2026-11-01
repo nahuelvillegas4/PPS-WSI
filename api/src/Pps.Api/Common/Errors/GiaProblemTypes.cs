@@ -13,6 +13,7 @@ public static class GiaProblemTypes
 
     // 404
     public const string NotFound = "urn:gia:problem:not-found";
+    public const string UserNotFound = "urn:gia:problem:user-not-found";
 
     // 409
     public const string DuplicateName = "urn:gia:problem:duplicate-name";
@@ -20,6 +21,7 @@ public static class GiaProblemTypes
     public const string NotEmpty = "urn:gia:problem:not-empty";
     public const string AlreadyRegistered = "urn:gia:problem:already-registered";
     public const string AlreadyImported = "urn:gia:problem:already-imported";
+    public const string AlreadyMember = "urn:gia:problem:already-member";
 
     // 412 & 428
     public const string VersionMismatch = "urn:gia:problem:version-mismatch";

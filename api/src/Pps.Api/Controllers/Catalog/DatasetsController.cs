@@ -1,15 +1,15 @@
 namespace Pps.Api.Controllers.Catalog;
 
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Pps.Api.Common.Access;
 using Pps.Api.Common.Errors;
 using Pps.Api.Controllers.Catalog.Dtos;
+using Pps.Domain.Access;
 using Pps.Domain.Catalog;
 using Pps.Infrastructure.Persistence;
 
 [ApiController]
-[Authorize]
 [Produces("application/json")]
 public class DatasetsController : ControllerBase
 {
@@ -26,6 +26,7 @@ public class DatasetsController : ControllerBase
     /// Lista los datasets pertenecientes a un proyecto.
     /// </summary>
     [HttpGet("api/v1/projects/{projectId:long}/datasets")]
+    [RequirePermission(Permission.ProjectView)]
     [ProducesResponseType(typeof(DatasetListResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -54,10 +55,10 @@ public class DatasetsController : ControllerBase
     }
 
     /// <summary>
-    /// Crea un nuevo dataset dentro de un proyecto. Solo administradores.
+    /// Crea un nuevo dataset dentro de un proyecto. Requiere administrador del proyecto.
     /// </summary>
     [HttpPost("api/v1/projects/{projectId:long}/datasets")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.CatalogManage)]
     [ProducesResponseType(typeof(DatasetResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -109,6 +110,7 @@ public class DatasetsController : ControllerBase
     /// Obtiene un dataset por su identificador.
     /// </summary>
     [HttpGet("api/v1/datasets/{datasetId:long}")]
+    [RequirePermission(Permission.ProjectView)]
     [ProducesResponseType(typeof(DatasetResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -131,10 +133,10 @@ public class DatasetsController : ControllerBase
     }
 
     /// <summary>
-    /// Actualiza el nombre o descripción de un dataset. Solo administradores.
+    /// Actualiza el nombre o descripción de un dataset. Requiere administrador del proyecto.
     /// </summary>
     [HttpPatch("api/v1/datasets/{datasetId:long}")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.CatalogManage)]
     [ProducesResponseType(typeof(DatasetResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -186,10 +188,10 @@ public class DatasetsController : ControllerBase
     }
 
     /// <summary>
-    /// Elimina un dataset. Solo administradores. Falla con 409 si el dataset tiene imágenes registradas (ADR-07).
+    /// Elimina un dataset. Requiere administrador del proyecto. Falla con 409 si el dataset tiene imágenes registradas (ADR-07).
     /// </summary>
     [HttpDelete("api/v1/datasets/{datasetId:long}")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.CatalogManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]

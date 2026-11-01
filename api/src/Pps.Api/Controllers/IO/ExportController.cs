@@ -1,13 +1,13 @@
 namespace Pps.Api.Controllers.IO;
 
 using System.Security.Claims;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pps.Api.Common.Access;
 using Pps.Api.Common.Errors;
+using Pps.Domain.Access;
 using Pps.Domain.Export;
 
 [ApiController]
-[Authorize]
 [Tags("io")]
 public class ExportController : ControllerBase
 {
@@ -25,6 +25,7 @@ public class ExportController : ControllerBase
     /// 'internal' es la fuente de verdad y 'coco' es el formato externo obligatorio.
     /// </summary>
     [HttpGet("api/v1/datasets/{datasetId:long}/export")]
+    [RequirePermission(Permission.DatasetExport)]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK, "application/json")]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]

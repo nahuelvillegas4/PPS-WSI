@@ -1,14 +1,13 @@
 namespace Pps.Api.Controllers.Storage;
 
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Pps.Api.Common.Access;
 using Pps.Api.Controllers.Storage.Dtos;
 using Pps.Domain.Images;
 using Pps.Infrastructure.Persistence;
 
 [ApiController]
-[Authorize]
 [Produces("application/json")]
 [Tags("images")]
 public class StorageController : ControllerBase
@@ -33,6 +32,7 @@ public class StorageController : ControllerBase
     /// <param name="prefix">Prefijo opcional de ruta relativa para filtrar archivos.</param>
     /// <param name="cancellationToken">Token de cancelación.</param>
     [HttpGet("api/v1/storage/files")]
+    [RequireGlobalAdmin]
     [ProducesResponseType(typeof(StorageFileListResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]

@@ -2,16 +2,16 @@ namespace Pps.Api.Controllers.Annotations;
 
 using System.Security.Claims;
 using System.Text.Json;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Pps.Api.Common.Access;
 using Pps.Api.Common.Errors;
 using Pps.Api.Controllers.Annotations.Dtos;
+using Pps.Domain.Access;
 using Pps.Domain.Annotations;
 using Pps.Infrastructure.Persistence;
 
 [ApiController]
-[Authorize]
 [Produces("application/json")]
 [Tags("annotations")]
 public class AnnotationsController : ControllerBase
@@ -35,6 +35,7 @@ public class AnnotationsController : ControllerBase
     /// Valida forma (400) y reglas de dominio (422).
     /// </summary>
     [HttpPost("api/v1/images/{imageId:long}/annotations")]
+    [RequirePermission(Permission.AnnotationWrite)]
     [ProducesResponseType(typeof(AnnotationResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -107,6 +108,7 @@ public class AnnotationsController : ControllerBase
     /// Lista anotaciones vigentes (no borradas) de la imagen, con filtro por autor.
     /// </summary>
     [HttpGet("api/v1/images/{imageId:long}/annotations")]
+    [RequirePermission(Permission.ProjectView)]
     [ProducesResponseType(typeof(AnnotationListResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -178,6 +180,7 @@ public class AnnotationsController : ControllerBase
     /// Consulta individual de una anotación por su ID.
     /// </summary>
     [HttpGet("api/v1/annotations/{annotationId:long}")]
+    [RequirePermission(Permission.ProjectView)]
     [ProducesResponseType(typeof(AnnotationResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -204,6 +207,7 @@ public class AnnotationsController : ControllerBase
     /// Requiere cabecera If-Match con la versión vigente (concurrencia optimista).
     /// </summary>
     [HttpPatch("api/v1/annotations/{annotationId:long}")]
+    [RequirePermission(Permission.AnnotationWrite)]
     [ProducesResponseType(typeof(AnnotationResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -313,6 +317,7 @@ public class AnnotationsController : ControllerBase
     /// Cabecera If-Match opcional; si se envía, se valida contra la versión vigente.
     /// </summary>
     [HttpDelete("api/v1/annotations/{annotationId:long}")]
+    [RequirePermission(Permission.AnnotationWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
