@@ -112,8 +112,8 @@ public class WsiPerformanceAndStressTests : IDisposable
     public async Task MassiveWsiAnnotations_CreateAndQueryHundreds_MeetsPerformanceCriteria()
     {
         // 1. Preparación de datos base
-        var userA = new User { Username = "revisor_a", PasswordHash = "hash", Role = "annotator" };
-        var userB = new User { Username = "revisor_b", PasswordHash = "hash", Role = "annotator" };
+        var userA = new User { Username = "revisor_a", PasswordHash = "hash", Role = "user" };
+        var userB = new User { Username = "revisor_b", PasswordHash = "hash", Role = "user" };
         var project = new Project { Name = "Proyecto WSI Gran Escala", Description = "Benchmark WSI" };
         _context.Users.AddRange(userA, userB);
         _context.Projects.Add(project);

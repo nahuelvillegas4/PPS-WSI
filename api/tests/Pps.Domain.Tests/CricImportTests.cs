@@ -257,7 +257,7 @@ public class CricImportTests : IDisposable
         var syntheticUser = await _context.Users.FirstOrDefaultAsync(u => u.Username == "import-cric");
         Assert.NotNull(syntheticUser);
         Assert.True(syntheticUser.IsSystem);
-        Assert.Equal("annotator", syntheticUser.Role);
+        Assert.Equal("user", syntheticUser.Role);
 
         // Anotaciones persistidas con procedencia
         var annotations = await _context.Annotations

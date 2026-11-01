@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Pps.Domain.Access;
 using Pps.Domain.Auth;
 
 public static class DatabaseInitializer
@@ -34,7 +35,7 @@ public static class DatabaseInitializer
                 var adminUser = new User
                 {
                     Username = adminUsername,
-                    Role = "admin",
+                    Role = GlobalRoles.Admin,
                     IsActive = true,
                     IsSystem = false,
                     CreatedAt = DateTime.UtcNow

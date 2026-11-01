@@ -22,6 +22,49 @@ namespace Pps.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Pps.Domain.Access.ProjectMember", b =>
+                {
+                    b.Property<long>("ProjectId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("project_id");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("GrantedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("granted_by_user_id");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("role");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("ProjectId", "UserId")
+                        .HasName("pk_project_members");
+
+                    b.HasIndex("GrantedByUserId")
+                        .HasDatabaseName("ix_project_members_granted_by_user_id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_project_members_user_id");
+
+                    b.ToTable("project_members", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_project_members_role", "role IN ('viewer', 'annotator', 'project-admin')");
+                        });
+                });
+
             modelBuilder.Entity("Pps.Domain.Annotations.Annotation", b =>
                 {
                     b.Property<long>("Id")
@@ -160,7 +203,10 @@ namespace Pps.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_users_username");
 
-                    b.ToTable("users", (string)null);
+                    b.ToTable("users", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_users_role", "role IN ('admin', 'user')");
+                        });
                 });
 
             modelBuilder.Entity("Pps.Domain.Catalog.Dataset", b =>
@@ -424,6 +470,33 @@ namespace Pps.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_imports_dataset_id_source");
 
                     b.ToTable("imports", (string)null);
+                });
+
+            modelBuilder.Entity("Pps.Domain.Access.ProjectMember", b =>
+                {
+                    b.HasOne("Pps.Domain.Auth.User", null)
+                        .WithMany()
+                        .HasForeignKey("GrantedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_project_members_users_granted_by_user_id");
+
+                    b.HasOne("Pps.Domain.Catalog.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_members_projects_project_id");
+
+                    b.HasOne("Pps.Domain.Auth.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_members_users_user_id");
+
+                    b.Navigation("Project");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Pps.Domain.Annotations.Annotation", b =>

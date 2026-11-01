@@ -3,6 +3,7 @@ namespace Pps.Infrastructure.Import;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Pps.Domain.Access;
 using Pps.Domain.Annotations;
 using Pps.Domain.Auth;
 using Pps.Domain.Catalog;
@@ -119,7 +120,7 @@ public class CricImporter : IAnnotationImporter
             {
                 Username = "import-cric",
                 PasswordHash = "system-no-login-hash",
-                Role = "annotator",
+                Role = GlobalRoles.User,
                 IsActive = true,
                 IsSystem = true,
                 CreatedAt = DateTime.UtcNow

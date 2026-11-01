@@ -1,6 +1,7 @@
 namespace Pps.Infrastructure.Persistence;
 
 using Microsoft.EntityFrameworkCore;
+using Pps.Domain.Access;
 using Pps.Domain.Auth;
 using Pps.Domain.Catalog;
 using Pps.Domain.Images;
@@ -18,6 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<MedicalImage> Images => Set<MedicalImage>();
     public DbSet<Annotation> Annotations => Set<Annotation>();
     public DbSet<ImportRecord> Imports => Set<ImportRecord>();
+    public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,6 +32,10 @@ public class AppDbContext : DbContext
             b.HasIndex(u => u.Username).IsUnique();
             b.Property(u => u.Username).HasMaxLength(100).IsRequired();
             b.Property(u => u.Role).HasMaxLength(50).IsRequired();
+
+            // Rol global (ADR-15): el CHECK sale de GlobalRoles.All para que no se desfase.
+            // El SQL del CHECK no pasa por la convención snake_case: la columna se escribe tal cual.
+            b.ToTable(t => t.HasCheckConstraint("ck_users_role", $"role IN ({SqlLiterals(GlobalRoles.All)})"));
         });
 
         // 2. Projects
@@ -172,7 +178,45 @@ public class AppDbContext : DbContext
             // Índice para acelerar consulta y verificación de fuentes ya importadas por dataset (409 already-imported)
             b.HasIndex(i => new { i.DatasetId, i.Source });
         });
+
+        // 8. Membresía de proyecto (ADR-15)
+        modelBuilder.Entity<ProjectMember>(b =>
+        {
+            b.HasKey(m => new { m.ProjectId, m.UserId });
+
+            // Se guarda el valor de cable y el CHECK sale de ProjectRoles.All: un rol nuevo no puede desfasarse.
+            b.Property(m => m.Role)
+                .HasConversion(new ProjectRoleConverter())
+                .HasMaxLength(20)
+                .IsRequired();
+
+            // Una membresía es una simple asociación: se elimina junto con su proyecto.
+            // DELETE /projects conserva igualmente su 409 si el proyecto tiene datasets.
+            b.HasOne(m => m.Project)
+                .WithMany()
+                .HasForeignKey(m => m.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasOne(m => m.User)
+                .WithMany()
+                .HasForeignKey(m => m.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Rastro de auditoría: quién otorgó la membresía.
+            b.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(m => m.GrantedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Para listar los proyectos de un usuario (GET /projects).
+            b.HasIndex(m => m.UserId);
+
+            b.ToTable(t => t.HasCheckConstraint("ck_project_members_role", $"role IN ({SqlLiterals(ProjectRoles.All)})"));
+        });
     }
+
+    private static string SqlLiterals(IEnumerable<string> values) =>
+        string.Join(", ", values.Select(v => $"'{v}'"));
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

@@ -248,7 +248,7 @@ public class StorageAndWsiTests
             var storage = new PhysicalStorageService(tempDir, NullLogger<PhysicalStorageService>.Instance);
             var inspector = new FakeWsiImageInspector();
             var controller = new ImagesController(db, storage, inspector, NullLogger<ImagesController>.Instance);
-            SetControllerUser(controller, userId: 2, username: "annotator1", role: "annotator");
+            SetControllerUser(controller, userId: 2, username: "annotator1", role: "user");
 
             // 1. Subir una única imagen WSI (.svs) al dataset 1
             var singleUpload = new List<IFormFile>
@@ -349,7 +349,7 @@ public class StorageAndWsiTests
         {
             Username = "revisor_patologo",
             PasswordHash = "hash2",
-            Role = "annotator",
+            Role = "user",
             IsActive = true,
             CreatedAt = DateTime.UtcNow
         };

@@ -194,7 +194,7 @@ public class CocoExportTests
 
         // 1. Seed data
         var user1 = new User { Username = "nahuel", PasswordHash = "hash1", Role = "admin", IsActive = true };
-        var user2 = new User { Username = "gino", PasswordHash = "hash2", Role = "annotator", IsActive = true };
+        var user2 = new User { Username = "gino", PasswordHash = "hash2", Role = "user", IsActive = true };
         db.Users.AddRange(user1, user2);
         await db.SaveChangesAsync();
 

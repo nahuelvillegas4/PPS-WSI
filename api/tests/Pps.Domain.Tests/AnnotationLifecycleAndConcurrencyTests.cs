@@ -51,8 +51,8 @@ public class AnnotationLifecycleAndConcurrencyTests
         var db = new AppDbContext(options);
         await db.Database.EnsureCreatedAsync();
 
-        var userA = new User { Username = "revisor_a", PasswordHash = "hash", Role = "annotator" };
-        var userB = new User { Username = "revisor_b", PasswordHash = "hash", Role = "annotator" };
+        var userA = new User { Username = "revisor_a", PasswordHash = "hash", Role = "user" };
+        var userB = new User { Username = "revisor_b", PasswordHash = "hash", Role = "user" };
         var admin = new User { Username = "admin_user", PasswordHash = "hash", Role = "admin" };
         db.Users.AddRange(userA, userB, admin);
         await db.SaveChangesAsync();
