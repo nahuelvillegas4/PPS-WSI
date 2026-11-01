@@ -742,3 +742,24 @@ button.primary {
   color: var(--accent);
   font-weight: 500;
 }
+
+/* Acciones de una cabecera de sección (botones lado a lado) */
+.section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Rol del usuario en un proyecto */
+.role-badge {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--surface);
+  white-space: nowrap;
+}

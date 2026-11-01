@@ -1,16 +1,15 @@
 import { ApiError, apiFetch, NetworkError } from '../../shared/api';
+import type { GlobalRole } from '../access/access';
 
 /** Contract limits of `LoginRequest` (api.v1.yaml). */
 export const USERNAME_MAX_LENGTH = 64;
 export const PASSWORD_MAX_LENGTH = 256;
 
-export type Role = 'admin' | 'annotator';
-
-/** `CurrentUser` of the contract: who owns the session. */
+/** `CurrentUser` of the contract: who owns the session. `role` is the global role. */
 export interface CurrentUser {
   id: number;
   username: string;
-  role: Role;
+  role: GlobalRole;
 }
 
 /** `POST /api/v1/auth/login`: on success the API answers 204 and sets the `gia_session` cookie. */

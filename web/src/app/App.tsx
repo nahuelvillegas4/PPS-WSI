@@ -1,27 +1,69 @@
-import { useSyncExternalStore } from 'react';
+import { useEffect } from 'react';
 import { LoginPage } from '../features/auth/LoginPage';
+import type { CurrentUser } from '../features/auth/authApi';
 import { useSession } from '../features/auth/useSession';
 import { CatalogPage } from '../features/catalog/CatalogPage';
+import { ProjectMembersPage } from '../features/members/ProjectMembersPage';
+import { UsersPage } from '../features/users/UsersPage';
 import { ViewerPage } from '../features/viewer/ViewerPage';
+import { navigate, useRoute } from '../shared/router';
 
-function subscribe(onChange: () => void): () => void {
-  window.addEventListener('popstate', onChange);
-  return () => {
-    window.removeEventListener('popstate', onChange);
+interface SignedInAppProps {
+  user: CurrentUser;
+  onSignOut: () => Promise<void>;
+}
+
+/** The screens, once there is a session. */
+function SignedInApp({ user, onSignOut }: SignedInAppProps) {
+  const route = useRoute();
+  const isGlobalAdmin = user.role === 'admin';
+
+  // The users screen is for the global admin; anyone else is sent back to the catalog. The API
+  // refuses the calls anyway: this only keeps a dead screen from showing.
+  const hidden = route.name === 'users' && !isGlobalAdmin;
+  useEffect(() => {
+    if (hidden) navigate('/', { replace: true });
+  }, [hidden]);
+
+  const goToCatalog = () => {
+    navigate('/');
   };
-}
 
-function usePath(): string {
-  return useSyncExternalStore(subscribe, () => window.location.pathname);
-}
-
-function navigate(path: string): void {
-  window.history.pushState({}, '', path);
-  window.dispatchEvent(new PopStateEvent('popstate'));
+  switch (route.name) {
+    case 'viewer':
+      return <ViewerPage key={route.imageId} imageId={route.imageId} onBack={goToCatalog} />;
+    case 'members':
+      return (
+        <ProjectMembersPage
+          key={route.projectId}
+          projectId={route.projectId}
+          isGlobalAdmin={isGlobalAdmin}
+          onBack={goToCatalog}
+        />
+      );
+    case 'users':
+      if (!isGlobalAdmin) return null;
+      return <UsersPage onBack={goToCatalog} />;
+    case 'catalog':
+      return (
+        <CatalogPage
+          user={user}
+          onOpenImage={(imageId) => {
+            navigate(`/images/${imageId}`);
+          }}
+          onOpenMembers={(projectId) => {
+            navigate(`/projects/${projectId}/members`);
+          }}
+          onOpenUsers={() => {
+            navigate('/admin/users');
+          }}
+          onSignOut={onSignOut}
+        />
+      );
+  }
 }
 
 export function App() {
-  const path = usePath();
   const { session, signedIn, signOut, retry } = useSession();
 
   if (session.kind === 'checking') {
@@ -44,27 +86,5 @@ export function App() {
     return <LoginPage onLoggedIn={signedIn} />;
   }
 
-  const match = /^\/images\/([1-9]\d*)$/.exec(path);
-
-  if (match?.[1]) {
-    return (
-      <ViewerPage
-        key={match[1]}
-        imageId={Number(match[1])}
-        onBack={() => {
-          navigate('/');
-        }}
-      />
-    );
-  }
-
-  return (
-    <CatalogPage
-      user={session.user}
-      onOpenImage={(imageId) => {
-        navigate(`/images/${imageId}`);
-      }}
-      onSignOut={signOut}
-    />
-  );
+  return <SignedInApp user={session.user} onSignOut={signOut} />;
 }

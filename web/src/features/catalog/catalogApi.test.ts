@@ -24,7 +24,13 @@ afterEach(() => {
 describe('catalogApi', () => {
   it('fetchProjects retrieves project items', async () => {
     const projects = [
-      { id: 1, name: 'Piloto', description: null, createdAt: '2026-10-21T00:00:00Z' },
+      {
+        id: 1,
+        name: 'Piloto',
+        description: null,
+        createdAt: '2026-10-21T00:00:00Z',
+        myRole: 'annotator',
+      },
     ];
     stubFetch(Response.json({ items: projects }));
 
@@ -38,6 +44,7 @@ describe('catalogApi', () => {
       name: 'Biopsias',
       description: 'Casos SVS',
       createdAt: '2026-10-24T00:00:00Z',
+      myRole: 'project-admin',
     };
     const mock = stubFetch(Response.json(newProject, { status: 201 }));
 

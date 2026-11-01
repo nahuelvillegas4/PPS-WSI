@@ -1,11 +1,13 @@
 import { apiFetch } from '../../shared/api';
-import type { Role } from '../auth/authApi';
+import type { ProjectRole } from '../access/access';
 
 export interface Project {
   id: number;
   name: string;
   description: string | null;
   createdAt: string;
+  /** Role of the session user in this project (the global admin is `project-admin` in all). */
+  myRole: ProjectRole;
 }
 
 export interface Dataset {
@@ -53,14 +55,14 @@ interface ListResponse<T> {
   items: T[];
 }
 
-/** `GET /api/v1/projects`: lista todos los proyectos disponibles. */
+/** `GET /api/v1/projects`: proyectos visibles para la sesión (todos para el admin global; el resto, solo sus membresías). */
 export async function fetchProjects(signal?: AbortSignal): Promise<Project[]> {
   const response = await apiFetch('/api/v1/projects', signal ? { signal } : {});
   const data = (await response.json()) as ListResponse<Project>;
   return data.items;
 }
 
-/** `POST /api/v1/projects`: crea un nuevo proyecto (solo administradores). */
+/** `POST /api/v1/projects`: crea un nuevo proyecto (solo el administrador global). */
 export async function createProject(name: string, description?: string | null): Promise<Project> {
   const response = await apiFetch('/api/v1/projects', {
     method: 'POST',
@@ -79,7 +81,7 @@ export async function fetchDatasets(projectId: number, signal?: AbortSignal): Pr
   return data.items;
 }
 
-/** `POST /api/v1/projects/{projectId}/datasets`: crea un dataset en un proyecto (solo administradores). */
+/** `POST /api/v1/projects/{projectId}/datasets`: crea un dataset en un proyecto (administrador del proyecto). */
 export async function createDataset(
   projectId: number,
   name: string,
@@ -106,7 +108,7 @@ export async function fetchDatasetImages(
   return (await response.json()) as ImagePage;
 }
 
-/** `GET /api/v1/storage/files`: archivos disponibles en el disco del servidor (solo administradores). */
+/** `GET /api/v1/storage/files`: archivos disponibles en el disco del servidor (solo el administrador global). */
 export async function fetchStorageFiles(
   prefix?: string,
   signal?: AbortSignal,
@@ -117,7 +119,7 @@ export async function fetchStorageFiles(
   return data.items;
 }
 
-/** `POST /api/v1/datasets/{datasetId}/images`: registra archivos físicos en un dataset (solo administradores). */
+/** `POST /api/v1/datasets/{datasetId}/images`: registra archivos físicos en un dataset (solo el administrador global). */
 export async function registerImagesInDataset(
   datasetId: number,
   storageKeys: string[],
@@ -128,8 +130,4 @@ export async function registerImagesInDataset(
   });
   const data = (await response.json()) as ListResponse<ImageItem>;
   return data.items;
-}
-
-export function canManageCatalog(role: Role): boolean {
-  return role === 'admin';
 }

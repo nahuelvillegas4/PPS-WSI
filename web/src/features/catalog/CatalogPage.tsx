@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
+import { can, type GlobalRole, PROJECT_ROLE_LABELS } from '../access/access';
 import type { CurrentUser } from '../auth/authApi';
+import { UploadImagesModal } from '../upload/UploadImagesModal';
 import {
   type Dataset,
   type ImageItem,
   type Project,
-  canManageCatalog,
   createDataset,
   createProject,
   fetchDatasetImages,
@@ -17,16 +18,24 @@ import { RegisterImagesModal } from './RegisterImagesModal';
 interface CatalogPageProps {
   user: CurrentUser;
   onOpenImage: (imageId: number) => void;
+  onOpenMembers: (projectId: number) => void;
+  onOpenUsers: () => void;
   onSignOut: () => Promise<void>;
 }
 
-const ROLE_LABELS: Record<CurrentUser['role'], string> = {
+const ROLE_LABELS: Record<GlobalRole, string> = {
   admin: 'administrador',
-  annotator: 'anotador',
+  user: 'usuario',
 };
 
-export function CatalogPage({ user, onOpenImage, onSignOut }: CatalogPageProps) {
-  const isAdmin = canManageCatalog(user.role);
+export function CatalogPage({
+  user,
+  onOpenImage,
+  onOpenMembers,
+  onOpenUsers,
+  onSignOut,
+}: CatalogPageProps) {
+  const isGlobalAdmin = user.role === 'admin';
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
@@ -49,6 +58,7 @@ export function CatalogPage({ user, onOpenImage, onSignOut }: CatalogPageProps) 
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [showCreateDataset, setShowCreateDataset] = useState(false);
   const [showRegisterImages, setShowRegisterImages] = useState(false);
+  const [showUploadImages, setShowUploadImages] = useState(false);
 
   // Carga de proyectos
   useEffect(() => {
@@ -122,6 +132,12 @@ export function CatalogPage({ user, onOpenImage, onSignOut }: CatalogPageProps) 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
   const selectedDataset = datasets.find((d) => d.id === selectedDatasetId);
 
+  // What the user may do in the selected project; the API enforces it, this only shows or hides.
+  const access = { globalRole: user.role, projectRole: selectedProject?.myRole ?? null };
+  const canManageCatalog = can('manageCatalog', access);
+  const canUploadImages = can('uploadImages', access);
+  const canManageMembers = can('manageMembers', access);
+
   return (
     <div className="catalog-layout">
       <header className="catalog-navbar">
@@ -134,6 +150,11 @@ export function CatalogPage({ user, onOpenImage, onSignOut }: CatalogPageProps) 
           <span>
             Sesión de <strong>{user.username}</strong> ({ROLE_LABELS[user.role]})
           </span>
+          {isGlobalAdmin && (
+            <button type="button" className="secondary-btn" onClick={onOpenUsers}>
+              Usuarios
+            </button>
+          )}
           <button
             type="button"
             className="secondary-btn"
@@ -162,7 +183,7 @@ export function CatalogPage({ user, onOpenImage, onSignOut }: CatalogPageProps) 
                 Seleccioná un proyecto de investigación o diagnóstico
               </span>
             </div>
-            {isAdmin && (
+            {isGlobalAdmin && (
               <button
                 type="button"
                 className="primary"
@@ -179,17 +200,21 @@ export function CatalogPage({ user, onOpenImage, onSignOut }: CatalogPageProps) 
 
           {!loadingProjects && projects.length === 0 && (
             <div className="empty-panel">
-              <p>No hay proyectos registrados en la plataforma.</p>
-              {isAdmin && (
-                <button
-                  type="button"
-                  className="primary"
-                  onClick={() => {
-                    setShowCreateProject(true);
-                  }}
-                >
-                  Crear primer proyecto
-                </button>
+              {isGlobalAdmin ? (
+                <>
+                  <p>No hay proyectos registrados en la plataforma.</p>
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={() => {
+                      setShowCreateProject(true);
+                    }}
+                  >
+                    Crear primer proyecto
+                  </button>
+                </>
+              ) : (
+                <p>No tenés proyectos asignados.</p>
               )}
             </div>
           )}
@@ -213,6 +238,7 @@ export function CatalogPage({ user, onOpenImage, onSignOut }: CatalogPageProps) 
                 >
                   <strong>{p.name}</strong>
                   {p.description && <small>{p.description}</small>}
+                  <span className="role-badge">{PROJECT_ROLE_LABELS[p.myRole]}</span>
                 </button>
               ))}
             </div>
@@ -229,17 +255,29 @@ export function CatalogPage({ user, onOpenImage, onSignOut }: CatalogPageProps) 
                   Conjuntos de imágenes agrupadas para etiquetado
                 </span>
               </div>
-              {isAdmin && (
-                <button
-                  type="button"
-                  className="primary"
-                  onClick={() => {
-                    setShowCreateDataset(true);
-                  }}
-                >
-                  + Nuevo Dataset
-                </button>
-              )}
+              <div className="section-actions">
+                {canManageMembers && selectedProject && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenMembers(selectedProject.id);
+                    }}
+                  >
+                    Miembros
+                  </button>
+                )}
+                {canManageCatalog && (
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={() => {
+                      setShowCreateDataset(true);
+                    }}
+                  >
+                    + Nuevo Dataset
+                  </button>
+                )}
+              </div>
             </div>
 
             {loadingDatasets && <p className="notice">Cargando datasets…</p>}
@@ -247,7 +285,7 @@ export function CatalogPage({ user, onOpenImage, onSignOut }: CatalogPageProps) 
             {!loadingDatasets && datasets.length === 0 && (
               <div className="empty-panel">
                 <p>Este proyecto todavía no tiene datasets asociados.</p>
-                {isAdmin && (
+                {canManageCatalog && (
                   <button
                     type="button"
                     className="primary"
@@ -297,25 +335,19 @@ export function CatalogPage({ user, onOpenImage, onSignOut }: CatalogPageProps) 
                     : `${images.length} imágenes disponibles`}
                 </span>
               </div>
-              {isAdmin && (
-                <button
-                  type="button"
-                  className="accent-btn"
-                  onClick={() => {
-                    setShowRegisterImages(true);
-                  }}
-                >
-                  + Registrar imágenes del servidor
-                </button>
-              )}
-            </div>
-
-            {loadingImages && <p className="notice">Cargando imágenes del dataset…</p>}
-
-            {!loadingImages && images.length === 0 && (
-              <div className="empty-panel">
-                <p>No hay imágenes registradas en este dataset.</p>
-                {isAdmin ? (
+              <div className="section-actions">
+                {canUploadImages && (
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={() => {
+                      setShowUploadImages(true);
+                    }}
+                  >
+                    + Subir imágenes
+                  </button>
+                )}
+                {isGlobalAdmin && (
                   <button
                     type="button"
                     className="accent-btn"
@@ -323,11 +355,44 @@ export function CatalogPage({ user, onOpenImage, onSignOut }: CatalogPageProps) 
                       setShowRegisterImages(true);
                     }}
                   >
-                    Registrar archivos disponibles en el servidor
+                    + Registrar imágenes del servidor
                   </button>
+                )}
+              </div>
+            </div>
+
+            {loadingImages && <p className="notice">Cargando imágenes del dataset…</p>}
+
+            {!loadingImages && images.length === 0 && (
+              <div className="empty-panel">
+                <p>No hay imágenes registradas en este dataset.</p>
+                {canUploadImages ? (
+                  <>
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={() => {
+                        setShowUploadImages(true);
+                      }}
+                    >
+                      Subir imágenes
+                    </button>
+                    {isGlobalAdmin && (
+                      <button
+                        type="button"
+                        className="accent-btn"
+                        onClick={() => {
+                          setShowRegisterImages(true);
+                        }}
+                      >
+                        Registrar archivos disponibles en el servidor
+                      </button>
+                    )}
+                  </>
                 ) : (
                   <p className="text-muted">
-                    Un administrador debe registrar imágenes en este dataset para poder anotarlas.
+                    Un administrador del proyecto debe subir imágenes a este dataset para poder
+                    anotarlas.
                   </p>
                 )}
               </div>
@@ -419,6 +484,20 @@ export function CatalogPage({ user, onOpenImage, onSignOut }: CatalogPageProps) 
             const created = await createDataset(selectedProjectId, name, description);
             setSelectedDatasetId(created.id);
             setDatasetReloadKey((k) => k + 1);
+          }}
+        />
+      )}
+
+      {showUploadImages && selectedDatasetId && (
+        <UploadImagesModal
+          datasetId={selectedDatasetId}
+          datasetName={selectedDataset?.name ?? ''}
+          onClose={() => {
+            setShowUploadImages(false);
+          }}
+          onUploaded={() => {
+            setLoadingImages(true);
+            setImageReloadKey((k) => k + 1);
           }}
         />
       )}

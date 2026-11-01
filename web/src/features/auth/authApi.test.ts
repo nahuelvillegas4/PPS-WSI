@@ -51,11 +51,14 @@ describe('login', () => {
 });
 
 describe('fetchCurrentUser', () => {
-  it('returns the session user', async () => {
-    const user = { id: 1, username: 'admin', role: 'admin' };
-    stubFetch(Response.json(user));
-    await expect(fetchCurrentUser()).resolves.toEqual(user);
-  });
+  it.each(['admin', 'user'] as const)(
+    'returns the session user with global role %s',
+    async (role) => {
+      const user = { id: 1, username: 'lucia', role };
+      stubFetch(Response.json(user));
+      await expect(fetchCurrentUser()).resolves.toEqual(user);
+    },
+  );
 
   it('returns null without a session', async () => {
     stubFetch(problem(401, 'unauthenticated'));
