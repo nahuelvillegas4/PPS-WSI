@@ -11,6 +11,8 @@ Qué comprueba:
      de exportación interna contra su esquema.
   5. dzi.json: recalcula con openslide.deepzoom.DeepZoomGenerator si está instalado.
   6. Las especificaciones OpenAPI son válidas (si openapi-spec-validator está instalado).
+  7. La matriz de autorización (fixtures/authorization-matrix.json) tiene exactamente una fila por
+     operación de api.v1.yaml y es coherente consigo misma. Este bloque es obligatorio: sin PyYAML falla.
 
 Uso:  python scripts/check_contract.py            (sale con código 1 si algo falla)
 """
@@ -20,6 +22,7 @@ import copy
 import json
 import math
 import sys
+from collections import Counter
 from fractions import Fraction
 from pathlib import Path
 
@@ -258,9 +261,81 @@ try:
 except ImportError:
     print("openapi-spec-validator no está instalado: se omite la validación OpenAPI.")
 
+
+# --------------------------------------- 7. matriz de autorización (obligatoria)
+# A diferencia de los bloques 5 y 6, este no se omite si falta una dependencia: la matriz es la
+# fuente única de los permisos mínimos y no puede quedar sin verificar.
+HTTP_VERBS = ("get", "put", "post", "delete", "options", "head", "patch", "trace")
+ROW_KEYS = ("method", "path", "minimum", "permission", "scope", "nonMember")
+ROW_OPTIONAL_KEYS = ("ownerOnly",)
+GLOBAL_MINIMUMS = ("global-admin", "any-authenticated", "anonymous")
+SCOPES = ("project", "dataset", "class", "image", "annotation", "none")
+NON_MEMBER_RESPONSES = (404, 403, None)
+
+try:
+    import yaml  # noqa: F811
+except ImportError:
+    failures.append("PyYAML no está instalado: la verificación de la matriz de autorización es obligatoria (pip install pyyaml)")
+else:
+    failures_before = len(failures)
+    matrix = load(FIXTURES / "authorization-matrix.json")
+    spec = yaml.safe_load((ROOT / "openapi" / "api.v1.yaml").read_text(encoding="utf-8"))
+    roles_global = matrix["roles"]["global"]
+    roles_project = matrix["roles"]["project"]
+    permissions = matrix["permissions"]
+
+    # Los roles de la matriz son los mismos que declara la OpenAPI.
+    schemas = spec.get("components", {}).get("schemas", {})
+    check(set(schemas.get("GlobalRole", {}).get("enum", [])) == set(roles_global),
+          f"authorization-matrix: roles.global {roles_global} ≠ enum de GlobalRole en api.v1.yaml")
+    check(set(schemas.get("ProjectRole", {}).get("enum", [])) == set(roles_project),
+          f"authorization-matrix: roles.project {roles_project} ≠ enum de ProjectRole en api.v1.yaml")
+
+    # Cada permiso se asigna a un rol de proyecto válido.
+    for name, role in permissions.items():
+        check(role in roles_project,
+              f"authorization-matrix: el permiso '{name}' apunta a '{role}', que no es un rol de proyecto {roles_project}")
+
+    # Coherencia de cada fila.
+    valid_minimums = (*roles_project, *GLOBAL_MINIMUMS)
+    for row in matrix["rows"]:
+        label = f"{row.get('method')} {row.get('path')}"
+        missing = [k for k in ROW_KEYS if k not in row]
+        unknown = [k for k in row if k not in ROW_KEYS + ROW_OPTIONAL_KEYS]
+        check(not missing, f"authorization-matrix: la fila {label} no tiene los campos {missing}")
+        check(not unknown, f"authorization-matrix: la fila {label} tiene campos desconocidos {unknown}")
+        if missing:
+            continue
+        minimum, permission, scope, non_member = row["minimum"], row["permission"], row["scope"], row["nonMember"]
+        check(minimum in valid_minimums, f"authorization-matrix: {label}: 'minimum' inválido ({minimum})")
+        check(permission is None or permission in permissions,
+              f"authorization-matrix: {label}: el permiso '{permission}' no está en 'permissions'")
+        check(scope in SCOPES, f"authorization-matrix: {label}: 'scope' inválido ({scope})")
+        check(non_member in NON_MEMBER_RESPONSES, f"authorization-matrix: {label}: 'nonMember' inválido ({non_member})")
+        check((scope == "none") == (non_member is None),
+              f"authorization-matrix: {label}: 'nonMember' es null si y solo si 'scope' es 'none'")
+        if minimum in roles_project:
+            check(permission in permissions and permissions[permission] == minimum,
+                  f"authorization-matrix: {label}: el mínimo '{minimum}' no coincide con el del permiso '{permission}'")
+            check(scope != "none", f"authorization-matrix: {label}: un rol de proyecto exige un 'scope' de proyecto")
+        else:
+            check(permission is None, f"authorization-matrix: {label}: el mínimo '{minimum}' no lleva permiso de proyecto")
+        check(row.get("ownerOnly", True) is True, f"authorization-matrix: {label}: 'ownerOnly' solo puede ser true")
+
+    # Exactamente una fila por operación de la OpenAPI, y ninguna de más.
+    spec_ops = {(verb.upper(), path) for path, item in spec["paths"].items() for verb in item if verb in HTTP_VERBS}
+    row_counts = Counter((str(r.get("method")).upper(), r.get("path")) for r in matrix["rows"])
+    for method, path in sorted(spec_ops):
+        n = row_counts.get((method, path), 0)
+        check(n == 1, f"authorization-matrix: {method} {path} tiene {n} fila(s) en la matriz (debe tener exactamente 1)")
+    for method, path in sorted(set(row_counts) - spec_ops, key=str):
+        failures.append(f"authorization-matrix: la fila {method} {path} no corresponde a ninguna operación de api.v1.yaml")
+    if len(failures) == failures_before:
+        print(f"Matriz de autorización verificada: {len(spec_ops)} operaciones.")
+
 if failures:
     print(f"\n{len(failures)} problema(s) en el contrato:")
     for f in failures:
         print("  ✗", f)
     sys.exit(1)
-print("Contrato v0.1 verificado: esquemas, reglas de geometría, coordenadas, exportación y DZI.")
+print("Contrato verificado: esquemas, reglas de geometría, coordenadas, exportación, DZI y matriz de autorización.")
