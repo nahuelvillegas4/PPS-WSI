@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
   title: GIA · API de gestión y anotación (PPS 2)
-  version: 0.1.0
+  version: 0.2.0
   description: |
-    Contrato de integración v0.1.0 (escrito a mano; ver ADR-05). A partir de la primera implementación,
+    Contrato de integración v0.2.0 (escrito a mano; ver ADR-05). A partir de la primera implementación,
     la especificación se genera en el build de ASP.NET Core y la CI la compara con este archivo.
 
     Convenciones (ADR-05):
@@ -14,6 +14,20 @@ info:
       El servidor valida, nunca transforma coordenadas.
     - Sesión por cookie HttpOnly `gia_session` emitida por `POST /api/v1/auth/login`.
       Autor y fechas los asigna el servidor.
+
+    Autorización (v0.2.0):
+    - Rol global (`GlobalRole`): `admin` o `user`. El administrador global actúa como `project-admin`
+      en todos los proyectos. Solo él crea cuentas, proyectos y registra o importa desde el volumen.
+    - Rol de proyecto (`ProjectRole`): `viewer` < `annotator` < `project-admin`. Cada rol incluye los permisos
+      de los anteriores. El usuario ve solo los proyectos en los que es miembro; su rol llega en `Project.myRole`.
+    - La matriz completa (rol mínimo de cada operación, ámbito y respuesta ante un usuario que no es miembro)
+      está en `contract/fixtures/authorization-matrix.json`, que es la fuente única. Las descripciones
+      de cada operación la resumen.
+    - Un usuario que no es miembro del proyecto recibe 404, la misma respuesta que para un recurso inexistente,
+      para no revelar qué recursos existen. Con un rol insuficiente recibe 403. Las operaciones reservadas
+      al administrador global responden 403 a cualquier otro usuario, exista o no el recurso.
+    - `GET /internal/v1/tile-access` nunca responde 404: devuelve 403 si el usuario no es miembro del proyecto
+      de la imagen (o la imagen no existe) y 401 si no hay sesión o el usuario fue desactivado.
 servers:
   - url: /
     description: Mismo origen, detrás de la pasarela Nginx.
@@ -23,6 +37,7 @@ tags:
   - name: auth
   - name: users
   - name: catalog
+  - name: members
   - name: images
   - name: annotations
   - name: io
@@ -60,6 +75,9 @@ paths:
     get:
       tags: [auth]
       operationId: getCurrentUser
+      description: |
+        `role` es el rol global (`admin` o `user`). Los roles de proyecto no se informan aquí:
+        llegan en `Project.myRole`.
       responses:
         '200':
           description: Usuario de la sesión actual.
@@ -72,7 +90,7 @@ paths:
     get:
       tags: [users]
       operationId: listUsers
-      description: Solo administradores.
+      description: Solo el administrador global.
       responses:
         '200':
           description: Usuarios.
@@ -88,7 +106,10 @@ paths:
     post:
       tags: [users]
       operationId: createUser
-      description: Solo administradores. No existe autorregistro.
+      description: |
+        Solo el administrador global. No existe autorregistro ni alta de cuentas por parte de los
+        administradores de proyecto: ellos solo asignan usuarios que ya existen (`addProjectMember`).
+        `role` es el rol global; el acceso a los proyectos se asigna aparte, por membresía.
       requestBody:
         required: true
         content:
@@ -109,10 +130,26 @@ paths:
   /api/v1/users/{userId}:
     parameters:
       - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [users]
+      operationId: getUser
+      description: Solo el administrador global.
+      responses:
+        '200':
+          description: Usuario.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
     patch:
       tags: [users]
       operationId: updateUser
-      description: Solo administradores. Cambia rol, estado o contraseña.
+      description: |
+        Solo el administrador global. Cambia rol, estado o contraseña.
+        Desactivar al administrador inicial (el configurado en el arranque) o pasarlo a `user` responde 409
+        `protected-user`. Pasar un usuario a `admin` elimina sus membresías de proyecto.
       requestBody:
         required: true
         content:
@@ -128,11 +165,15 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
 
   /api/v1/projects:
     get:
       tags: [catalog]
       operationId: listProjects
+      description: |
+        Proyectos visibles para la sesión: todos para el administrador global; para el resto, solo aquellos
+        de los que es miembro (la lista queda vacía si no tiene ninguno). Cada proyecto incluye `myRole`.
       responses:
         '200':
           description: Proyectos.
@@ -147,7 +188,7 @@ paths:
     post:
       tags: [catalog]
       operationId: createProject
-      description: Solo administradores.
+      description: Solo el administrador global.
       requestBody:
         required: true
         content:
@@ -155,7 +196,7 @@ paths:
             schema: { $ref: '#/components/schemas/ProjectInput' }
       responses:
         '201':
-          description: Proyecto creado.
+          description: Proyecto creado. `myRole` es `project-admin`.
           headers:
             Location: { $ref: '#/components/headers/Location' }
           content:
@@ -171,6 +212,9 @@ paths:
     get:
       tags: [catalog]
       operationId: getProject
+      description: |
+        Requiere ser miembro del proyecto (mínimo `viewer`) o administrador global. Quien no es miembro
+        recibe 404. La respuesta incluye `myRole`.
       responses:
         '200':
           description: Proyecto.
@@ -182,6 +226,9 @@ paths:
     patch:
       tags: [catalog]
       operationId: updateProject
+      description: |
+        Solo el administrador global: cualquier otro usuario recibe 403, exista o no el proyecto.
+        Los nombres de proyecto son únicos, por lo que el 409 revelaría los que existen.
       requestBody:
         required: true
         content:
@@ -201,7 +248,9 @@ paths:
     delete:
       tags: [catalog]
       operationId: deleteProject
-      description: Solo administradores. 409 si el proyecto tiene datasets.
+      description: |
+        Solo el administrador global: cualquier otro usuario recibe 403, exista o no el proyecto.
+        409 (`not-empty`) si el proyecto tiene datasets. Las membresías se eliminan junto con el proyecto.
       responses:
         '204': { description: Eliminado. }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -209,12 +258,103 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /api/v1/projects/{projectId}/members:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [members]
+      operationId: listProjectMembers
+      description: |
+        Requiere `project-admin` en el proyecto (implícito para el administrador global). Los anotadores
+        y los lectores no pueden ver a los demás miembros: reciben 403.
+      responses:
+        '200':
+          description: Miembros del proyecto.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectMemberList' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [members]
+      operationId: addProjectMember
+      description: |
+        Requiere `project-admin` en el proyecto (implícito para el administrador global). Asigna un rol a un
+        usuario que ya existe: no crea cuentas, que solo crea el administrador global (`createUser`).
+        El usuario se indica por su nombre exacto; no hay búsqueda de usuarios. Un nombre inexistente,
+        de un usuario inactivo, de sistema o administrador global responde siempre 404 `user-not-found`,
+        para no revelar qué cuentas existen. Las búsquedas fallidas repetidas de un mismo usuario se limitan
+        con 429. Si el usuario ya es miembro responde 409 `already-member`: para cambiar su rol se usa
+        `updateProjectMember`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddProjectMemberRequest' }
+      responses:
+        '201':
+          description: Miembro agregado. `Location` apunta a la membresía.
+          headers:
+            Location: { $ref: '#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectMember' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: 'El proyecto no existe o la sesión no es miembro (`urn:gia:problem:not-found`), o el usuario indicado no se puede asignar (`urn:gia:problem:user-not-found`).'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetails' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /api/v1/projects/{projectId}/members/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/UserId'
+    patch:
+      tags: [members]
+      operationId: updateProjectMember
+      description: |
+        Requiere `project-admin` en el proyecto (implícito para el administrador global). Cambia el rol de un
+        miembro. 404 si el usuario no es miembro del proyecto.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateProjectMemberRequest' }
+      responses:
+        '200':
+          description: Miembro actualizado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectMember' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [members]
+      operationId: removeProjectMember
+      description: |
+        Requiere `project-admin` en el proyecto (implícito para el administrador global). Quita al usuario
+        del proyecto. Sus anotaciones se conservan, pero solo su autor puede editarlas (ADR-07): quedan sin
+        edición hasta que se lo vuelva a agregar. 404 si el usuario no es miembro del proyecto.
+      responses:
+        '204': { description: Miembro quitado. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/v1/projects/{projectId}/datasets:
     parameters:
       - $ref: '#/components/parameters/ProjectId'
     get:
       tags: [catalog]
       operationId: listDatasets
+      description: Requiere ser miembro del proyecto (mínimo `viewer`) o administrador global.
       responses:
         '200':
           description: Datasets del proyecto.
@@ -230,7 +370,7 @@ paths:
     post:
       tags: [catalog]
       operationId: createDataset
-      description: Solo administradores.
+      description: Requiere `project-admin` en el proyecto (implícito para el administrador global).
       requestBody:
         required: true
         content:
@@ -255,6 +395,7 @@ paths:
     get:
       tags: [catalog]
       operationId: getDataset
+      description: Requiere ser miembro del proyecto del dataset (mínimo `viewer`) o administrador global.
       responses:
         '200':
           description: Dataset.
@@ -266,6 +407,7 @@ paths:
     patch:
       tags: [catalog]
       operationId: updateDataset
+      description: Requiere `project-admin` en el proyecto del dataset (implícito para el administrador global).
       requestBody:
         required: true
         content:
@@ -285,7 +427,7 @@ paths:
     delete:
       tags: [catalog]
       operationId: deleteDataset
-      description: Solo administradores. 409 si el dataset tiene imágenes.
+      description: Requiere `project-admin` en el proyecto del dataset (implícito para el administrador global). 409 si el dataset tiene imágenes.
       responses:
         '204': { description: Eliminado. }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -299,6 +441,7 @@ paths:
     get:
       tags: [catalog]
       operationId: listClasses
+      description: Requiere ser miembro del proyecto del dataset (mínimo `viewer`) o administrador global.
       responses:
         '200':
           description: Clases del dataset ordenadas por displayOrder y luego por id.
@@ -314,7 +457,7 @@ paths:
     post:
       tags: [catalog]
       operationId: createClass
-      description: Solo administradores. 409 si el nombre ya existe en el dataset.
+      description: Requiere `project-admin` en el proyecto del dataset (implícito para el administrador global). 409 si el nombre ya existe en el dataset.
       requestBody:
         required: true
         content:
@@ -339,6 +482,7 @@ paths:
     patch:
       tags: [catalog]
       operationId: updateClass
+      description: Requiere `project-admin` en el proyecto de la clase (implícito para el administrador global).
       requestBody:
         required: true
         content:
@@ -358,7 +502,7 @@ paths:
     delete:
       tags: [catalog]
       operationId: deleteClass
-      description: Solo administradores. 409 (`class-in-use`) si la clase tiene anotaciones.
+      description: Requiere `project-admin` en el proyecto de la clase (implícito para el administrador global). 409 (`class-in-use`) si la clase tiene anotaciones.
       responses:
         '204': { description: Eliminada. }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -370,7 +514,7 @@ paths:
     get:
       tags: [images]
       operationId: listStorageFiles
-      description: Lista los archivos disponibles en el volumen de imágenes del servidor. Accesible para usuarios autenticados (admin y annotator).
+      description: Lista los archivos disponibles en todo el volumen de imágenes del servidor, sin distinguir proyectos. Solo el administrador global.
       parameters:
         - name: prefix
           in: query
@@ -396,6 +540,7 @@ paths:
     get:
       tags: [images]
       operationId: listImages
+      description: Requiere ser miembro del proyecto del dataset (mínimo `viewer`) o administrador global.
       parameters:
         - name: page
           in: query
@@ -415,7 +560,9 @@ paths:
       tags: [images]
       operationId: registerImages
       description: |
-        Registra archivos que ya están en el servidor. Accesible para cualquier usuario autenticado (admin o annotator).
+        Registra archivos que ya están en el servidor. Solo el administrador global, porque lee cualquier ruta
+        del volumen: cualquier otro usuario recibe 403, exista o no el dataset. Para subir archivos desde el
+        navegador se usa `uploadImages`.
         La API obtiene los metadatos técnicos del servicio de teselas (`GET /internal/v1/inspect`). Operación atómica:
         si una imagen falla, no se registra ninguna.
       requestBody:
@@ -451,7 +598,21 @@ paths:
         Sube una o múltiples imágenes (`.svs`, `.png`, `.jpg`, `.jpeg`) al volumen del servidor
         bajo `datasets/{datasetId}/{filename}`, inspecciona sus dimensiones y niveles en nivel 0
         con el servicio de teselas (`GET /internal/v1/inspect`) y las registra atómicamente en el dataset.
-        Accesible para cualquier usuario autenticado (`admin` o `annotator`).
+        Los archivos nunca se sobrescriben.
+
+        Requiere `project-admin` en el proyecto del dataset (implícito para el administrador global): un anotador
+        o un lector recibe 403 y quien no es miembro, 404. Registrar archivos del volumen por su clave
+        (`registerImages`) queda reservado al administrador global.
+
+        La petición lleva un único campo multipart `files` (hasta 2000 archivos) y debe incluir `Content-Length`:
+        sin él responde 400. La aplicación web envía un archivo por petición. El tamaño de la petición no puede
+        superar los 10 GiB (413) ni el espacio libre del volumen de imágenes (507). El servidor puede rechazar
+        la petición (401, 403, 404, 413 o 507) antes de terminar de recibir el cuerpo, y algunos navegadores
+        lo informan como un error de red.
+
+        Hay dos variantes de 409: `already-registered` si ya existe una imagen registrada en esa clave, y
+        `storage-key-in-use` si hay un archivo en esa clave pero ninguna imagen registrada (archivo huérfano
+        o carrera entre dos subidas con el mismo nombre).
       requestBody:
         required: true
         content:
@@ -461,6 +622,7 @@ paths:
               properties:
                 files:
                   type: array
+                  description: Archivos a subir. Extensiones admitidas `.svs`, `.png`, `.jpg` y `.jpeg`.
                   items:
                     type: string
                     format: binary
@@ -479,16 +641,27 @@ paths:
                 required: [items]
         '400': { $ref: '#/components/responses/ValidationProblem' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
+        '409':
+          description: 'Conflicto de estado: `already-registered` (ya hay una imagen registrada en esa clave) o `storage-key-in-use` (hay un archivo en esa clave sin imagen registrada).'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetails' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
         '422': { $ref: '#/components/responses/UnprocessableEntity' }
         '503': { $ref: '#/components/responses/DependencyUnavailable' }
+        '507': { $ref: '#/components/responses/InsufficientStorage' }
   /api/v1/images/{imageId}:
     parameters:
       - $ref: '#/components/parameters/ImageId'
     get:
       tags: [images]
       operationId: getImage
+      description: |
+        Requiere ser miembro del proyecto de la imagen (mínimo `viewer`) o administrador global. La imagen
+        no informa un rol propio: el rol de la sesión se obtiene siguiendo `Image.datasetId`, `Dataset.projectId`
+        y `Project.myRole`.
       responses:
         '200':
           description: Imagen con sus metadatos técnicos y la URL de su fuente DZI.
@@ -504,6 +677,9 @@ paths:
     get:
       tags: [annotations]
       operationId: listAnnotations
+      description: |
+        Requiere ser miembro del proyecto de la imagen (mínimo `viewer`) o administrador global. Cualquier
+        miembro puede leer las anotaciones de todos los autores (`author`).
       parameters:
         - name: author
           in: query
@@ -531,6 +707,8 @@ paths:
         Crea una anotación del usuario de la sesión. El servidor asigna autor, fechas, `source: manual`
         y versión. Valida forma (400) y reglas de dominio (422): límites de la imagen, geometría
         degenerada, autointersección y que la clase pertenezca al dataset de la imagen.
+        Requiere `annotator` o superior en el proyecto de la imagen (implícito para el administrador global):
+        un lector recibe 403.
       requestBody:
         required: true
         content:
@@ -547,6 +725,7 @@ paths:
               schema: { $ref: '#/components/schemas/Annotation' }
         '400': { $ref: '#/components/responses/ValidationProblem' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/UnprocessableEntity' }
   /api/v1/annotations/{annotationId}:
@@ -555,6 +734,9 @@ paths:
     get:
       tags: [annotations]
       operationId: getAnnotation
+      description: |
+        Requiere ser miembro del proyecto de la anotación (mínimo `viewer`) o administrador global.
+        Una anotación borrada responde 404.
       responses:
         '200':
           description: Anotación.
@@ -568,7 +750,11 @@ paths:
     patch:
       tags: [annotations]
       operationId: updateAnnotation
-      description: Solo el autor. Requiere `If-Match` con la versión vigente (concurrencia optimista).
+      description: |
+        Solo el autor, y siempre que conserve `annotator` o superior en el proyecto; el administrador global
+        tampoco puede editar anotaciones ajenas (ADR-07). Se evalúa en este orden: 404 (no existe o no es
+        miembro), 403 por rol insuficiente y 403 por no ser el autor.
+        Requiere `If-Match` con la versión vigente (concurrencia optimista).
       parameters:
         - $ref: '#/components/parameters/IfMatchRequired'
       requestBody:
@@ -594,7 +780,10 @@ paths:
     delete:
       tags: [annotations]
       operationId: deleteAnnotation
-      description: Solo el autor. Borrado lógico. `If-Match` es opcional; si se envía, se verifica.
+      description: |
+        Solo el autor, y siempre que conserve `annotator` o superior en el proyecto; el administrador global
+        tampoco puede borrar anotaciones ajenas (ADR-07). Se evalúa en el mismo orden que `updateAnnotation`.
+        Borrado lógico. `If-Match` es opcional; si se envía, se verifica.
       parameters:
         - $ref: '#/components/parameters/IfMatchOptional'
       responses:
@@ -611,7 +800,8 @@ paths:
       tags: [io]
       operationId: importAnnotations
       description: |
-        Solo administradores. Importación síncrona y atómica desde una carpeta del volumen de imágenes.
+        Solo el administrador global, porque lee una carpeta del volumen: cualquier otro usuario recibe 403,
+        exista o no el dataset. Importación síncrona y atómica desde una carpeta del volumen de imágenes.
         Con `dryRun: true` (valor por defecto) valida y devuelve el reporte sin escribir nada.
       requestBody:
         required: true
@@ -645,6 +835,8 @@ paths:
       description: |
         Descarga la exportación del dataset. `internal` es la fuente de verdad; `coco` y `yolo`
         se derivan de ella. Sin efectos secundarios. `yolo` es condicional (ADR-10).
+        Requiere `project-admin` en el proyecto del dataset (implícito para el administrador global): un anotador
+        o un lector recibe 403 y quien no es miembro, 404.
       parameters:
         - name: format
           in: query
@@ -666,6 +858,7 @@ paths:
               schema: { type: string, contentMediaType: application/zip }
         '400': { $ref: '#/components/responses/ValidationProblem' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/UnprocessableEntity' }
 
@@ -675,9 +868,11 @@ paths:
       operationId: authorizeTileRequest
       description: |
         Solo lo invoca la pasarela (subrequest de `auth_request`); no se expone al navegador.
-        Valida la cookie de sesión, extrae el id de imagen de `X-Original-URI` y, si corresponde,
-        responde 204 con `X-Storage-Key`. Nunca responde 302: Nginx trataría cualquier código
-        distinto de 2xx, 401 y 403 como error.
+        Valida la cookie de sesión, extrae el id de imagen de `X-Original-URI` y, si el usuario es miembro del
+        proyecto de la imagen (mínimo `viewer`) o administrador global, responde 204 con `X-Storage-Key`.
+        Solo responde 204, 401 o 403: nunca 302 ni 404, porque Nginx trataría como error cualquier código
+        distinto de 2xx, 401 y 403. Una imagen inexistente, un usuario que no es miembro y una URI que no
+        se puede interpretar responden 403; un usuario desactivado responde 401.
       parameters:
         - name: X-Original-URI
           in: header
@@ -690,8 +885,8 @@ paths:
             X-Storage-Key:
               description: Ruta relativa del archivo dentro del volumen de imágenes.
               schema: { type: string, examples: ['wsi/CMU-1.svs'] }
-        '401': { description: Sin sesión válida. }
-        '403': { description: La sesión no puede ver esa imagen. }
+        '401': { description: 'Sin sesión válida o usuario desactivado.' }
+        '403': { description: 'El usuario no es miembro del proyecto de la imagen, o la imagen no existe.' }
 
   /health/live:
     get:
@@ -770,22 +965,22 @@ components:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetails' }
     Unauthenticated:
-      description: Sin sesión o sesión vencida (`urn:gia:problem:unauthenticated`).
+      description: Sin sesión, sesión vencida o usuario desactivado (`urn:gia:problem:unauthenticated`).
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetails' }
     Forbidden:
-      description: Sin permiso, por ejemplo al editar una anotación ajena (`urn:gia:problem:forbidden`).
+      description: 'Sin permiso: el rol del usuario en el proyecto no alcanza, la operación es exclusiva del administrador global, o la anotación es de otro autor (`urn:gia:problem:forbidden`).'
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetails' }
     NotFound:
-      description: No existe (`urn:gia:problem:not-found`).
+      description: 'No existe, o el usuario no es miembro del proyecto que lo contiene (`urn:gia:problem:not-found`). La respuesta es la misma en ambos casos para no revelar qué recursos existen.'
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetails' }
     Conflict:
-      description: 'Conflicto de estado: `duplicate-name`, `class-in-use`, `not-empty`, `already-registered`, `already-imported`.'
+      description: 'Conflicto de estado: `duplicate-name`, `class-in-use`, `not-empty`, `already-registered`, `already-imported`, `already-member`, `protected-user`, `storage-key-in-use`.'
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetails' }
@@ -804,13 +999,23 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetails' }
+    PayloadTooLarge:
+      description: La petición supera el tamaño máximo permitido (`urn:gia:problem:payload-too-large`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
     TooManyRequests:
-      description: Demasiados intentos de inicio de sesión (`urn:gia:problem:too-many-requests`).
+      description: Demasiados intentos de inicio de sesión o de búsquedas fallidas de usuario al agregar miembros (`urn:gia:problem:too-many-requests`).
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetails' }
     DependencyUnavailable:
       description: El servicio de teselas no respondió (`urn:gia:problem:dependency-unavailable`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    InsufficientStorage:
+      description: No hay espacio libre suficiente en el volumen de imágenes (`urn:gia:problem:insufficient-storage`).
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetails' }
@@ -839,9 +1044,14 @@ components:
             type: array
             items: { type: string }
       required: [type, title, status, traceId]
-    Role:
+    GlobalRole:
       type: string
-      enum: [admin, annotator]
+      enum: [admin, user]
+      description: 'Rol global de la cuenta. `admin` es el administrador global: gestiona usuarios y proyectos y actúa como `project-admin` en todos los proyectos. `user` solo accede a los proyectos en los que es miembro.'
+    ProjectRole:
+      type: string
+      enum: [project-admin, annotator, viewer]
+      description: 'Rol de un usuario dentro de un proyecto. Escalera `viewer` < `annotator` < `project-admin`: cada rol incluye los permisos de los anteriores. `viewer` visualiza, `annotator` además anota y `project-admin` además administra el catálogo, sube imágenes, exporta y gestiona los miembros.'
     LoginRequest:
       type: object
       properties:
@@ -854,14 +1064,14 @@ components:
       properties:
         id: { $ref: '#/components/schemas/Id' }
         username: { type: string }
-        role: { $ref: '#/components/schemas/Role' }
+        role: { $ref: '#/components/schemas/GlobalRole' }
       required: [id, username, role]
     User:
       type: object
       properties:
         id: { $ref: '#/components/schemas/Id' }
         username: { type: string }
-        role: { $ref: '#/components/schemas/Role' }
+        role: { $ref: '#/components/schemas/GlobalRole' }
         isActive: { type: boolean }
         createdAt: { $ref: '#/components/schemas/Timestamp' }
       required: [id, username, role, isActive, createdAt]
@@ -870,25 +1080,55 @@ components:
       properties:
         username: { type: string, pattern: '^[a-z0-9._-]{3,64}$' }
         password: { type: string, minLength: 12, maxLength: 256 }
-        role: { $ref: '#/components/schemas/Role' }
+        role: { $ref: '#/components/schemas/GlobalRole' }
       required: [username, password, role]
       additionalProperties: false
     UpdateUserRequest:
       type: object
       properties:
-        role: { $ref: '#/components/schemas/Role' }
+        role: { $ref: '#/components/schemas/GlobalRole' }
         isActive: { type: boolean }
         password: { type: string, minLength: 12, maxLength: 256 }
       minProperties: 1
       additionalProperties: false
     Project:
       type: object
+      description: 'Proyecto. `myRole` es de solo lectura: lo calcula el servidor para la sesión actual (el administrador global recibe `project-admin` en todos los proyectos) y los cuerpos de entrada no lo aceptan.'
       properties:
         id: { $ref: '#/components/schemas/Id' }
         name: { type: string }
         description: { type: [string, 'null'] }
         createdAt: { $ref: '#/components/schemas/Timestamp' }
-      required: [id, name, description, createdAt]
+        myRole: { $ref: '#/components/schemas/ProjectRole', readOnly: true }
+      required: [id, name, description, createdAt, myRole]
+    ProjectMember:
+      type: object
+      description: 'Membresía de un usuario en un proyecto. `createdAt` es la fecha de alta de la membresía; `isActive` es el estado de la cuenta del usuario.'
+      properties:
+        userId: { $ref: '#/components/schemas/Id' }
+        username: { type: string }
+        role: { $ref: '#/components/schemas/ProjectRole' }
+        isActive: { type: boolean }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+      required: [userId, username, role, isActive, createdAt]
+    ProjectMemberList:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ProjectMember' } }
+      required: [items]
+    AddProjectMemberRequest:
+      type: object
+      properties:
+        username: { type: string, pattern: '^[a-z0-9._-]{3,64}$' }
+        role: { $ref: '#/components/schemas/ProjectRole' }
+      required: [username, role]
+      additionalProperties: false
+    UpdateProjectMemberRequest:
+      type: object
+      properties:
+        role: { $ref: '#/components/schemas/ProjectRole' }
+      required: [role]
+      additionalProperties: false
     ProjectInput:
       type: object
       properties:

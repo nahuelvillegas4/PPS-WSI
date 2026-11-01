@@ -1,4 +1,4 @@
-# Anexo A. Contrato de integración v0.1.0
+# Anexo A. Contrato de integración v0.2.0
 
 Este anexo es la versión legible del contrato. Los archivos de `contract/` son la versión normativa y verificable: si este texto y un archivo difieren, manda el archivo y se corrige el texto. La parte de frontend del contrato, la interfaz `ImageViewer` que pide PPS 2 §4, está en §5.2.
 
@@ -14,12 +14,14 @@ Este anexo es la versión legible del contrato. Los archivos de `contract/` son 
 | `fixtures/dzi.json` | Direccionamiento Deep Zoom verificado con OpenSlide | PPS 1 |
 | `fixtures/export.json` | Casos de COCO, YOLO, WSI y puntos de CRIC | PPS 2 |
 | `fixtures/geometry-validation.json` | Geometrías válidas e inválidas (400 y 422) | Ambos |
+| `fixtures/authorization-matrix.json` | Matriz de autorización: rol mínimo, permiso, ámbito y respuesta ante un no miembro de cada operación de `api.v1.yaml` | PPS 2, revisa PPS 1 |
 | `scripts/check_contract.py` (raíz del repositorio) | Verifica todo lo anterior en la CI | Ambos |
 
 ## A.2 Versión y reglas de cambio
 
-- Versión **0.1.0**. Hasta la 1.0, que se congela al cierre de I2, cualquier cambio sube la versión menor y se anuncia en `CHANGELOG.md`.
+- Versión **0.2.0**. Hasta la 1.0, que se congela al cierre de I2, cualquier cambio sube la versión menor y se anuncia en `CHANGELOG.md`. La 0.2.0 incorpora los roles por proyecto, un cambio de alcance que espera la aprobación de la supervisión: la 1.0.0 no se etiqueta hasta tenerla.
 - Desde la 1.0 se aplica versionado semántico. Es **compatible** agregar endpoints, parámetros opcionales o campos opcionales en las respuestas, y sube la versión menor. Es **incompatible** quitar o renombrar, volver obligatorio algo opcional o cambiar un significado: sube la versión mayor y conviven `/v1` y `/v2` hasta que migren los dos módulos.
+- El rol mínimo de cada operación (`fixtures/authorization-matrix.json`) forma parte del contrato. **Bajar** un mínimo (por ejemplo de `project-admin` a `annotator`) es compatible y sube la versión menor; **subirlo**, o reservar una operación al administrador global, es incompatible y sube la versión mayor.
 - Todo cambio es un PR que toca `contract/`, actualiza el CHANGELOG y los casos numéricos afectados y tiene la aprobación de los dos.
 
 ## A.3 Sistema de coordenadas (normativo)
@@ -64,25 +66,36 @@ La autointersección se evalúa antes que el área porque un polígono en forma 
 
 **Nota sobre herramientas (verificada).** Los puntos se declaran como «arreglo de exactamente dos números» (`minItems`/`maxItems`) y no como tupla, y el esquema no usa `$defs`. Con tuplas, openapi-fetch 0.17 las convierte en arreglos genéricos al tipar cuerpos y respuestas; con `$defs`, openapi-typescript 7.13 genera un tipo que exige una propiedad `$defs`. Así escrito, el tipo generado es una unión discriminada limpia: `rectangle | polygon`.
 
-## A.5 API v0.1 (resumen de `api.v1.yaml`)
+## A.5 API v0.2 (resumen de `api.v1.yaml`)
 
-Lectura: cualquier sesión. Escritura del catálogo, registro, importación y usuarios: administración. Modificación de anotaciones: solo su autor.
+Roles: el administrador global (`admin`) actúa como `project-admin` en todos los proyectos; dentro de un proyecto la escalera es `viewer` < `annotator` < `project-admin`. Solo ve un proyecto quien es miembro, o el administrador global.
+
+| Quién | Qué puede hacer |
+|---|---|
+| `viewer` | Leer: proyecto, datasets, clases, imágenes y anotaciones de todos los autores |
+| `annotator` | Lo anterior y crear anotaciones (editar o borrar solo las propias) |
+| `project-admin` | Lo anterior y administrar datasets y clases, subir imágenes, exportar y gestionar los miembros del proyecto |
+| Administrador global | Todo lo anterior en cualquier proyecto y, de forma exclusiva, crear y gestionar usuarios, crear, renombrar y borrar proyectos, listar el volumen, registrar archivos por clave e importar |
+
+Modificar o borrar una anotación: solo su autor, también para el administrador global. Quien no es miembro de un proyecto recibe 404, la misma respuesta que para un recurso inexistente; con un rol insuficiente recibe 403; una operación exclusiva del administrador global responde 403 a cualquier otro usuario. La matriz completa por operación está en `fixtures/authorization-matrix.json`. Los administradores de proyecto no crean cuentas: asignan usuarios que ya existen.
 
 | Método y ruta | Éxito | Errores relevantes |
 |---|---|---|
 | `POST /api/v1/auth/login` · `POST /api/v1/auth/logout` · `GET /api/v1/auth/me` | 204 con cookie · 204 · 200 | 400, 401, 429 |
-| `GET, POST /api/v1/users` · `PATCH /api/v1/users/{userId}` | 200, 201 | 403, 409 |
-| `GET, POST /api/v1/projects` · `GET, PATCH, DELETE /api/v1/projects/{projectId}` | 200, 201, 204 | 404, 409 `not-empty` |
-| `GET, POST /api/v1/projects/{projectId}/datasets` · `GET, PATCH, DELETE /api/v1/datasets/{datasetId}` | 200, 201, 204 | 404, 409 |
-| `GET, POST /api/v1/datasets/{datasetId}/classes` · `PATCH, DELETE /api/v1/classes/{classId}` | 200, 201, 204 | 409 `duplicate-name`, `class-in-use` |
+| `GET, POST /api/v1/users` · `GET, PATCH /api/v1/users/{userId}` | 200, 201 | 403, 409 `protected-user` |
+| `GET, POST /api/v1/projects` · `GET, PATCH, DELETE /api/v1/projects/{projectId}` | 200, 201, 204; incluyen `myRole` | 403, 404, 409 `not-empty` |
+| `GET, POST /api/v1/projects/{projectId}/members` · `PATCH, DELETE /api/v1/projects/{projectId}/members/{userId}` | 200, 201, 200, 204 | 403, 404 `user-not-found`, 409 `already-member`, 429 |
+| `GET, POST /api/v1/projects/{projectId}/datasets` · `GET, PATCH, DELETE /api/v1/datasets/{datasetId}` | 200, 201, 204 | 403, 404, 409 |
+| `GET, POST /api/v1/datasets/{datasetId}/classes` · `PATCH, DELETE /api/v1/classes/{classId}` | 200, 201, 204 | 403, 409 `duplicate-name`, `class-in-use` |
 | `GET /api/v1/storage/files?prefix=` | 200 | 403, 422 `invalid-storage-key` |
-| `GET, POST /api/v1/datasets/{datasetId}/images` | 200 paginado, 201 | 409 `already-registered`, 422, 503 |
+| `GET, POST /api/v1/datasets/{datasetId}/images` | 200 paginado, 201 | 403, 409 `already-registered`, 422, 503 |
+| `POST /api/v1/datasets/{datasetId}/images/upload` (multipart, campo `files`) | 201 | 400, 403, 409 `already-registered`, `storage-key-in-use`, 413, 422, 503, 507 |
 | `GET /api/v1/images/{imageId}` | 200, incluye `tileSourceUrl` | 404 |
-| `GET, POST /api/v1/images/{imageId}/annotations` | 200, 201 con `ETag` | 400, 422 |
+| `GET, POST /api/v1/images/{imageId}/annotations` | 200, 201 con `ETag` | 400, 403, 422 |
 | `GET, PATCH, DELETE /api/v1/annotations/{annotationId}` | 200, 204 | 403, 412, 428 |
-| `POST /api/v1/datasets/{datasetId}/imports` | 200 (`dryRun`), 201 | 409 `already-imported`, 422, 503 |
-| `GET /api/v1/datasets/{datasetId}/export?format=&authors=` | 200 con archivo adjunto | 400, 422 |
-| `GET /internal/v1/tile-access` (solo la pasarela) | 204 con `X-Storage-Key` | 401, 403 |
+| `POST /api/v1/datasets/{datasetId}/imports` | 200 (`dryRun`), 201 | 403, 409 `already-imported`, 422, 503 |
+| `GET /api/v1/datasets/{datasetId}/export?format=&authors=` | 200 con archivo adjunto | 400, 403, 422 |
+| `GET /internal/v1/tile-access` (solo la pasarela) | 204 con `X-Storage-Key` | 401 (también usuario desactivado), 403 (también no miembro) |
 
 ## A.6 Servicio de teselas v0.1 (resumen de `tiles.v1.yaml`)
 
@@ -118,17 +131,19 @@ Todas las respuestas de error usan `application/problem+json` (RFC 9457) con `ty
 | Estado | `type` (`urn:gia:problem:…`) | Cuándo |
 |---|---|---|
 | 400 | `validation` · `missing-storage-key` | El JSON no cumple el esquema · la pasarela no envió la clave (configuración) |
-| 401 | `unauthenticated` | Sin sesión o sesión vencida |
-| 403 | `forbidden` | Rol insuficiente o anotación ajena |
-| 404 | `not-found` · `file-not-found` · `tile-not-found` | Recurso, archivo o tesela inexistente |
-| 409 | `duplicate-name` · `class-in-use` · `not-empty` · `already-registered` · `already-imported` | Conflicto con el estado actual |
+| 401 | `unauthenticated` | Sin sesión, sesión vencida o usuario desactivado |
+| 403 | `forbidden` | Rol insuficiente en el proyecto, operación exclusiva del administrador global o anotación ajena |
+| 404 | `not-found` · `file-not-found` · `tile-not-found` · `user-not-found` | Recurso inexistente o de un proyecto del que el usuario no es miembro (misma respuesta en ambos casos), archivo o tesela inexistente · usuario que no se puede asignar como miembro (inexistente, inactivo, de sistema o administrador global) |
+| 409 | `duplicate-name` · `class-in-use` · `not-empty` · `already-registered` · `already-imported` · `already-member` · `protected-user` · `storage-key-in-use` | Conflicto con el estado actual. `already-member`: el usuario ya está en el proyecto. `protected-user`: se intentó desactivar o degradar al administrador inicial. `storage-key-in-use`: hay un archivo en esa clave sin imagen registrada |
 | 412 | `version-mismatch` | `If-Match` no coincide con la versión vigente |
+| 413 | `payload-too-large` | La petición de subida supera el tamaño máximo |
 | 415 | `unsupported-media-type` · `unsupported-image-format` | Cuerpo que no es JSON · archivo de imagen no soportado (inspección) |
 | 422 | `class-not-in-dataset` · `geometry-out-of-bounds` · `geometry-degenerate` · `geometry-self-intersection` · `invalid-storage-key` · `unsupported-image-format` · `import-too-large` | Regla de dominio |
 | 428 | `precondition-required` | `PATCH` sin `If-Match` |
-| 429 | `too-many-requests` | Demasiados intentos de ingreso |
+| 429 | `too-many-requests` | Demasiados intentos de ingreso o de búsquedas fallidas de usuario al agregar miembros |
 | 500 | `internal` | Error inesperado; solo expone el `traceId` |
-| 503 | `dependency-unavailable` | El servicio de teselas no respondió durante un registro o una importación |
+| 503 | `dependency-unavailable` | El servicio de teselas no respondió durante un registro, una subida o una importación |
+| 507 | `insufficient-storage` | No hay espacio libre suficiente en el volumen de imágenes para la subida |
 
 ## A.8 Casos de exportación
 
@@ -150,7 +165,9 @@ python scripts/check_contract.py
 npx openapi-typescript contract/openapi/api.v1.yaml -o web/src/shared/api/api.d.ts
 ```
 
-Resultado al 28/09/2026: el script verifica esquemas, reglas de geometría, coordenadas, exportación, DZI (con `DeepZoomGenerator`) y las dos OpenAPI. Los tipos generados con openapi-typescript 7.13.0 compilan con TypeScript 5.9.3 en modo estricto junto con openapi-fetch 0.17.0. El compilador rechaza enviar `authorId` en el cuerpo, un rectángulo sin `height` y un `PATCH` sin `If-Match`.
+Resultado al 28/09/2026: el script verifica esquemas, reglas de geometría, coordenadas, exportación, DZI (con `DeepZoomGenerator`) y las dos OpenAPI. Los tipos generados con openapi-typescript 7.13.0 compilan con TypeScript 5.9.3 en modo estricto junto con openapi-fetch 0.17.0. El compilador rechaza enviar `authorId` en el cuerpo, un rectángulo sin `height` y un `PATCH` sin `If-Match`. Ese resultado corresponde a la 0.1.0 y debe repetirse con la 0.2.0.
+
+Desde la 0.2.0 el script también contrasta `fixtures/authorization-matrix.json` con `api.v1.yaml`: cada operación debe tener exactamente una fila en la matriz, y viceversa. Este bloque no se omite si falta una dependencia: sin PyYAML el script falla.
 
 ## A.10 Pendiente para la versión 1.0
 
@@ -158,3 +175,5 @@ Resultado al 28/09/2026: el script verifica esquemas, reglas de geometría, coor
 - `boxSize` definitivo (S5), formato externo (S7) y exportación de WSI (S8).
 - Comparación semántica entre la OpenAPI generada por cada servicio y la del contrato.
 - Eventos de `ImageViewer` que resulten necesarios para la edición de vértices.
+- Cambio de alcance de la 0.2.0 (roles por proyecto y subida de imágenes): aprobación por escrito de la supervisión y contrapartida de esfuerzo que esta exige (PPS 1 §10, PPS 2 §9), a decidir por los estudiantes. La 1.0.0 no se etiqueta sin la aprobación.
+- Regenerar los tipos con openapi-typescript sobre la 0.2.0 y repetir la compilación estricta, porque `GlobalRole`, `ProjectRole` y `Project.myRole` cambian los tipos generados.
