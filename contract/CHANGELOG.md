@@ -28,6 +28,10 @@ Cambio de alcance: roles por proyecto y subida de imágenes desde el navegador (
 - `authorizeTileRequest` (`tile-access`): responde 403 a quien no es miembro del proyecto de la imagen y 401 a un usuario desactivado. Sigue sin responder nunca 404 ni 302.
 - `Forbidden`, `NotFound`, `Conflict`, `Unauthenticated` y `TooManyRequests` amplían su descripción a los casos nuevos. El 404 pasa a significar también «no es miembro».
 
+### Estado de implementación en la API (01/11/2026)
+
+Este registro describe el contrato, que va por delante de la API. La API ya cumple los roles por proyecto, los endpoints de miembros, `GET /projects` filtrado con `myRole`, `tile-access` por membresía y los marcadores de las 40 operaciones. **Todavía no aplica** estas respuestas ya documentadas: 429 al asignar miembros, 409 `protected-user` (y la baja de membresías al promover a `admin`), 413 `payload-too-large`, 507 `insufficient-storage`, 409 `storage-key-in-use` y el 400 por falta de `Content-Length` en la subida.
+
 ### Sin cambios
 
 - `openapi/tiles.v1.yaml`, los esquemas JSON y los casos numéricos (`coordinates.json`, `dzi.json`, `export.json` y `geometry-validation.json`) conservan su contenido y la etiqueta 0.1.0 de su propio encabezado.
