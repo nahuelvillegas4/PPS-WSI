@@ -1,6 +1,6 @@
 # ADR-04. Sesión por cookie de punta a punta y teselas protegidas con `auth_request`
 
-**Estado:** `DECIDIDO` (mecanismo) · `PROPUESTO` (política de usuarios) · **Fecha:** 28/09/2026 · **Decisores:** Gino Tombesi, Nahuel Villegas
+**Estado:** `DECIDIDO` (mecanismo) · roles de la política de usuarios reemplazados por [ADR-15](0015-roles-por-proyecto-y-membresia.md) (`PROPUESTO`); el resto de esa política sigue `PROPUESTO` · **Fecha:** 28/09/2026 · **Decisores:** Gino Tombesi, Nahuel Villegas
 
 **Contexto.** La autenticación es local y básica, con administrador inicial (PPS 1 §4, PPS 2 §3.3). OpenSeadragon pide teselas sin cabeceras propias, de modo que un token en `Authorization` obligaría a cambiar cómo carga las teselas. Además, las teselas son imágenes médicas y deben requerir sesión (Guía §9 P19).
 
