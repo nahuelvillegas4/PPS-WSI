@@ -264,25 +264,33 @@ except ImportError:
 
 # --------------------------------------- 7. matriz de autorización (obligatoria)
 # A diferencia de los bloques 5 y 6, este no se omite si falta una dependencia: la matriz es la
-# fuente única de los permisos mínimos y no puede quedar sin verificar.
+# fuente única de los permisos mínimos y no puede quedar sin verificar. Contrasta operaciones, roles,
+# versión y las respuestas 401/403/404 documentadas; no compara el texto libre de las descripciones.
 HTTP_VERBS = ("get", "put", "post", "delete", "options", "head", "patch", "trace")
 ROW_KEYS = ("method", "path", "minimum", "permission", "scope", "nonMember")
-ROW_OPTIONAL_KEYS = ("ownerOnly",)
-GLOBAL_MINIMUMS = ("global-admin", "any-authenticated", "anonymous")
+ROW_OPTIONAL_KEYS = ("ownerOnly", "manualGate")
+# Los mínimos que no son roles de proyecto. 'global-admin' es la grafía de la matriz para el rol global 'admin'.
+NON_PROJECT_MINIMUMS = ("global-admin", "any-authenticated", "anonymous")
+# Escalera de roles de proyecto: el orden de roles.project en la matriz es significativo.
+PROJECT_LADDER = ["viewer", "annotator", "project-admin"]
 SCOPES = ("project", "dataset", "class", "image", "annotation", "none")
 NON_MEMBER_RESPONSES = (404, 403, None)
 
-try:
-    import yaml  # noqa: F811
-except ImportError:
-    failures.append("PyYAML no está instalado: la verificación de la matriz de autorización es obligatoria (pip install pyyaml)")
-else:
+def verify_authorization_matrix(pyyaml) -> str | None:
+    """Contrasta la matriz con api.v1.yaml; devuelve la versión del contrato o None si no se pudo leer."""
     failures_before = len(failures)
-    matrix = load(FIXTURES / "authorization-matrix.json")
-    spec = yaml.safe_load((ROOT / "openapi" / "api.v1.yaml").read_text(encoding="utf-8"))
-    roles_global = matrix["roles"]["global"]
-    roles_project = matrix["roles"]["project"]
-    permissions = matrix["permissions"]
+    try:
+        matrix = load(FIXTURES / "authorization-matrix.json")
+        spec = pyyaml.safe_load((ROOT / "openapi" / "api.v1.yaml").read_text(encoding="utf-8"))
+        roles_global = matrix["roles"]["global"]
+        roles_project = matrix["roles"]["project"]
+        permissions = matrix["permissions"]
+        rows = matrix["rows"]
+        spec_paths = spec["paths"]
+        spec_version = spec["info"]["version"]
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        failures.append(f"authorization-matrix: no se pudo leer la matriz o api.v1.yaml ({e!r})")
+        return None
 
     # Los roles de la matriz son los mismos que declara la OpenAPI.
     schemas = spec.get("components", {}).get("schemas", {})
@@ -291,14 +299,20 @@ else:
     check(set(schemas.get("ProjectRole", {}).get("enum", [])) == set(roles_project),
           f"authorization-matrix: roles.project {roles_project} ≠ enum de ProjectRole en api.v1.yaml")
 
+    # La escalera (el orden importa: cada mínimo se lee como «este rol o uno superior») y la versión.
+    check(roles_project == PROJECT_LADDER,
+          f"authorization-matrix: roles.project debe seguir la escalera {PROJECT_LADDER} (en ese orden), no {roles_project}")
+    check(matrix.get("version") == spec_version,
+          f"authorization-matrix: version {matrix.get('version')} ≠ info.version {spec_version} de api.v1.yaml")
+
     # Cada permiso se asigna a un rol de proyecto válido.
     for name, role in permissions.items():
         check(role in roles_project,
               f"authorization-matrix: el permiso '{name}' apunta a '{role}', que no es un rol de proyecto {roles_project}")
 
     # Coherencia de cada fila.
-    valid_minimums = (*roles_project, *GLOBAL_MINIMUMS)
-    for row in matrix["rows"]:
+    valid_minimums = (*roles_project, *NON_PROJECT_MINIMUMS)
+    for row in rows:
         label = f"{row.get('method')} {row.get('path')}"
         missing = [k for k in ROW_KEYS if k not in row]
         unknown = [k for k in row if k not in ROW_KEYS + ROW_OPTIONAL_KEYS]
@@ -320,22 +334,55 @@ else:
             check(scope != "none", f"authorization-matrix: {label}: un rol de proyecto exige un 'scope' de proyecto")
         else:
             check(permission is None, f"authorization-matrix: {label}: el mínimo '{minimum}' no lleva permiso de proyecto")
-        check(row.get("ownerOnly", True) is True, f"authorization-matrix: {label}: 'ownerOnly' solo puede ser true")
+        for flag in ROW_OPTIONAL_KEYS:  # las marcas opcionales existen solo para activarse: se omiten si no aplican
+            check(flag not in row or row[flag] is True,
+                  f"authorization-matrix: {label}: '{flag}' solo puede ser true")
 
     # Exactamente una fila por operación de la OpenAPI, y ninguna de más.
-    spec_ops = {(verb.upper(), path) for path, item in spec["paths"].items() for verb in item if verb in HTTP_VERBS}
-    row_counts = Counter((str(r.get("method")).upper(), r.get("path")) for r in matrix["rows"])
+    spec_ops = {(verb.upper(), path) for path, item in spec_paths.items() for verb in item if verb in HTTP_VERBS}
+    row_counts = Counter((str(r.get("method")).upper(), r.get("path")) for r in rows)
     for method, path in sorted(spec_ops):
         n = row_counts.get((method, path), 0)
         check(n == 1, f"authorization-matrix: {method} {path} tiene {n} fila(s) en la matriz (debe tener exactamente 1)")
     for method, path in sorted(set(row_counts) - spec_ops, key=str):
         failures.append(f"authorization-matrix: la fila {method} {path} no corresponde a ninguna operación de api.v1.yaml")
+
+    # Las respuestas documentadas cubren lo que exige cada fila: 401 salvo en las anónimas, 404 si la fila
+    # oculta el recurso a un no miembro, y 403 si el mínimo supera a viewer, la operación es solo del autor
+    # o la fila responde 403 a un no miembro.
+    rows_by_op = {(str(r.get("method")).upper(), r.get("path")): r for r in rows}
+    for method, path in sorted(spec_ops):
+        row = rows_by_op.get((method, path))
+        if row is None or any(k not in row for k in ROW_KEYS):
+            continue  # la fila ausente o incompleta ya se informó arriba
+        documented = {str(code) for code in spec_paths[path][method.lower()].get("responses", {})}
+        needs = set()
+        if row["minimum"] != "anonymous":
+            needs.add("401")
+        if row["nonMember"] == 404:
+            needs.add("404")
+        if row["minimum"] in ("annotator", "project-admin", "global-admin") or row["nonMember"] == 403 or row.get("ownerOnly"):
+            needs.add("403")
+        check(needs <= documented,
+              f"authorization-matrix: {method} {path} no documenta las respuestas {sorted(needs - documented)} que exige su fila")
+
     if len(failures) == failures_before:
         print(f"Matriz de autorización verificada: {len(spec_ops)} operaciones.")
+    return spec_version
+
+
+try:
+    import yaml as pyyaml
+except ImportError:
+    failures.append("PyYAML no está instalado: la verificación de la matriz de autorización es obligatoria (pip install pyyaml)")
+    contract_version = None
+else:
+    contract_version = verify_authorization_matrix(pyyaml)
 
 if failures:
     print(f"\n{len(failures)} problema(s) en el contrato:")
     for f in failures:
         print("  ✗", f)
     sys.exit(1)
-print("Contrato verificado: esquemas, reglas de geometría, coordenadas, exportación, DZI y matriz de autorización.")
+version_label = f" {contract_version}" if contract_version else ""
+print(f"Contrato{version_label} verificado: esquemas, reglas de geometría, coordenadas, exportación, DZI y matriz de autorización.")

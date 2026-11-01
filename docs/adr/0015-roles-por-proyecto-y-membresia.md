@@ -69,7 +69,7 @@ Como todo miembro es al menos `viewer`, las rutas con mínimo `viewer` nunca dev
 
 **Relleno al migrar.**
 
-- Por defecto: cada usuario activo que no sea `admin` ni de sistema recibe `annotator` en todos los proyectos existentes y conserva así el acceso que tenía. Los inactivos no se rellenan, para que reactivarlos después no otorgue acceso masivo. Los roles de `users` distintos de `admin` pasan a `user`; ese `UPDATE` va antes de agregar el `CHECK`.
+- Por defecto: cada usuario activo que no sea `admin` ni de sistema recibe `annotator` en todos los proyectos existentes y conserva así el acceso de lectura y anotación que tenía (pierde exportar y subir, como en la alternativa). Los inactivos no se rellenan, para que reactivarlos después no otorgue acceso masivo. Los roles de `users` distintos de `admin` pasan a `user`; ese `UPDATE` va antes de agregar el `CHECK`.
 - Alternativa, **pendiente de decisión**: partir de cero, de modo que nadie ve ningún proyecto hasta que el administrador global lo asigne. Coincide al pie de la letra con el pedido y evita el SQL de relleno, su prueba y el procedimiento de limpieza (unas 60 líneas). En ambos casos los anotadores pierden exportar y subir.
 
 **Qué reemplaza.** De [ADR-04](0004-sesion-y-proteccion-de-teselas.md), solo los roles de la política de usuarios (`admin` y `annotator`). El resto de esa política (administrador inicial por variables de entorno, altas solo por un administrador, sin autorregistro) no cambia y conserva su estado `PROPUESTO`; el mecanismo de sesión y de teselas sigue `DECIDIDO`. De §8.4, la fila «Usuarios» («todo usuario autenticado ve todas las imágenes»); de §11.2, la deuda «Roles mínimos».

@@ -77,7 +77,7 @@ Roles: el administrador global (`admin`) actúa como `project-admin` en todos lo
 | `project-admin` | Lo anterior y administrar datasets y clases, subir imágenes, exportar y gestionar los miembros del proyecto |
 | Administrador global | Todo lo anterior en cualquier proyecto y, de forma exclusiva, crear y gestionar usuarios, crear, renombrar y borrar proyectos, listar el volumen, registrar archivos por clave e importar |
 
-Modificar o borrar una anotación: solo su autor, también para el administrador global. Quien no es miembro de un proyecto recibe 404, la misma respuesta que para un recurso inexistente; con un rol insuficiente recibe 403; una operación exclusiva del administrador global responde 403 a cualquier otro usuario. La matriz completa por operación está en `fixtures/authorization-matrix.json`. Los administradores de proyecto no crean cuentas: asignan usuarios que ya existen.
+Modificar o borrar una anotación: solo su autor; ni siquiera el administrador global puede. Quien no es miembro de un proyecto recibe 404, la misma respuesta que para un recurso inexistente; con un rol insuficiente recibe 403; una operación exclusiva del administrador global responde 403 a cualquier otro usuario. La matriz completa por operación está en `fixtures/authorization-matrix.json`. Los administradores de proyecto no crean cuentas: asignan usuarios que ya existen.
 
 | Método y ruta | Éxito | Errores relevantes |
 |---|---|---|
@@ -167,7 +167,7 @@ npx openapi-typescript contract/openapi/api.v1.yaml -o web/src/shared/api/api.d.
 
 Resultado al 28/09/2026: el script verifica esquemas, reglas de geometría, coordenadas, exportación, DZI (con `DeepZoomGenerator`) y las dos OpenAPI. Los tipos generados con openapi-typescript 7.13.0 compilan con TypeScript 5.9.3 en modo estricto junto con openapi-fetch 0.17.0. El compilador rechaza enviar `authorId` en el cuerpo, un rectángulo sin `height` y un `PATCH` sin `If-Match`. Ese resultado corresponde a la 0.1.0 y debe repetirse con la 0.2.0.
 
-Desde la 0.2.0 el script también contrasta `fixtures/authorization-matrix.json` con `api.v1.yaml`: cada operación debe tener exactamente una fila en la matriz, y viceversa. Este bloque no se omite si falta una dependencia: sin PyYAML el script falla.
+Desde la 0.2.0 el script también contrasta `fixtures/authorization-matrix.json` con `api.v1.yaml`: cada operación debe tener exactamente una fila en la matriz, y viceversa; la versión de la matriz debe coincidir con la del contrato, los roles de proyecto deben seguir la escalera `viewer`, `annotator`, `project-admin` y las respuestas 401, 403 y 404 documentadas deben cubrir lo que exige cada fila. Este bloque no se omite si falta una dependencia: sin PyYAML el script falla.
 
 ## A.10 Pendiente para la versión 1.0
 

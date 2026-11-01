@@ -1,6 +1,6 @@
 {
   "version": "0.2.0",
-  "description": "Matriz de autorización del contrato (fuente única; la consumen la prueba de reflexión de la API, Vitest, check_contract.py y el E2E). Cada fila de 'rows' es una operación de api.v1.yaml: 'path' es la ruta OpenAPI exacta; 'minimum' es el rol mínimo (viewer < annotator < project-admin dentro del proyecto; global-admin; any-authenticated; anonymous); 'permission' es el permiso de proyecto que se exige (null si no aplica); 'scope' es el recurso del que se deduce el proyecto; 'nonMember' es la respuesta que recibe un usuario sin membresía (404 oculta el recurso, 403 lo deniega, null si la operación no tiene ámbito de proyecto). 'ownerOnly' indica que, además del rol, solo el autor puede ejecutar la operación (ADR-07, también el administrador global). El administrador global tiene rol efectivo project-admin en todos los proyectos.",
+  "description": "Matriz de autorización del contrato (fuente única; la consumen la prueba de reflexión de la API, Vitest, check_contract.py y el E2E). Cada fila de 'rows' es una operación de api.v1.yaml: 'path' es la ruta OpenAPI exacta; 'minimum' es el rol mínimo (viewer < annotator < project-admin dentro del proyecto, y el orden de 'roles.project' es esa escalera; global-admin, que es la grafía de este archivo para el rol global admin; any-authenticated; anonymous); 'permission' es el permiso de proyecto que se exige (null si no aplica); 'scope' es el recurso del que se deduce el proyecto; 'nonMember' es la respuesta que recibe un usuario sin membresía (404 oculta el recurso, 403 lo deniega, null si la operación no tiene ámbito de proyecto). 'ownerOnly' indica que, además del rol, solo el autor puede ejecutar la operación: ni siquiera el administrador global puede (ADR-07). 'manualGate' indica que la operación lleva [AuthenticatedOnly] y aplica su permiso a mano (listar proyectos y tile-access), por lo que la prueba de reflexión de la API no compara su permiso declarado y la cubren las pruebas de humo. El administrador global tiene rol efectivo project-admin en todos los proyectos.",
   "roles": {
     "global": ["admin", "user"],
     "project": ["viewer", "annotator", "project-admin"]
@@ -21,7 +21,7 @@
     {"method": "POST", "path": "/api/v1/users", "minimum": "global-admin", "permission": null, "scope": "none", "nonMember": null},
     {"method": "GET", "path": "/api/v1/users/{userId}", "minimum": "global-admin", "permission": null, "scope": "none", "nonMember": null},
     {"method": "PATCH", "path": "/api/v1/users/{userId}", "minimum": "global-admin", "permission": null, "scope": "none", "nonMember": null},
-    {"method": "GET", "path": "/api/v1/projects", "minimum": "any-authenticated", "permission": null, "scope": "none", "nonMember": null},
+    {"method": "GET", "path": "/api/v1/projects", "minimum": "any-authenticated", "permission": null, "scope": "none", "nonMember": null, "manualGate": true},
     {"method": "POST", "path": "/api/v1/projects", "minimum": "global-admin", "permission": null, "scope": "none", "nonMember": null},
     {"method": "GET", "path": "/api/v1/projects/{projectId}", "minimum": "viewer", "permission": "project.view", "scope": "project", "nonMember": 404},
     {"method": "PATCH", "path": "/api/v1/projects/{projectId}", "minimum": "global-admin", "permission": null, "scope": "project", "nonMember": 403},
@@ -51,7 +51,7 @@
     {"method": "DELETE", "path": "/api/v1/annotations/{annotationId}", "minimum": "annotator", "permission": "annotation.write", "scope": "annotation", "nonMember": 404, "ownerOnly": true},
     {"method": "POST", "path": "/api/v1/datasets/{datasetId}/imports", "minimum": "global-admin", "permission": null, "scope": "dataset", "nonMember": 403},
     {"method": "GET", "path": "/api/v1/datasets/{datasetId}/export", "minimum": "project-admin", "permission": "dataset.export", "scope": "dataset", "nonMember": 404},
-    {"method": "GET", "path": "/internal/v1/tile-access", "minimum": "viewer", "permission": "project.view", "scope": "image", "nonMember": 403},
+    {"method": "GET", "path": "/internal/v1/tile-access", "minimum": "viewer", "permission": "project.view", "scope": "image", "nonMember": 403, "manualGate": true},
     {"method": "GET", "path": "/health/live", "minimum": "anonymous", "permission": null, "scope": "none", "nonMember": null},
     {"method": "GET", "path": "/health/ready", "minimum": "anonymous", "permission": null, "scope": "none", "nonMember": null}
   ]
