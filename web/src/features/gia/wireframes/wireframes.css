@@ -1,0 +1,200 @@
+/*
+ * Sketches of the proposed screens. Everything is drawn with dashed outlines so it reads as a
+ * proposal, and only the colour variables of styles.css are used. Sizes are in em/rem so the
+ * presentation mode, which scales the root font size, scales the sketches too.
+ */
+
+.gia-wf {
+  margin: 1.25rem 0;
+  border: 1px dashed var(--muted);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  overflow: hidden;
+}
+
+.gia-wf-banner {
+  margin: 0;
+  padding: 0.5rem 0.9rem;
+  border-bottom: 1px dashed var(--muted);
+  background: color-mix(in srgb, var(--warning) 14%, var(--surface));
+  font-size: 0.8125em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.gia-wf-title {
+  margin: 0.9rem 0.9rem 0.25rem;
+  font-size: 1.05em;
+}
+
+.gia-wf-caption {
+  margin: 0 0.9rem 0.75rem;
+  color: var(--muted);
+  font-size: 0.875em;
+}
+
+.gia-wf-frame {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0 0.9rem;
+  padding: 0.75rem;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.gia-wf-body {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.gia-wf-region {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+/* The bands that span the width lay their elements side by side. */
+.gia-wf-region[data-area='top'],
+.gia-wf-region[data-area='bottom'] {
+  flex-flow: row wrap;
+  align-items: flex-start;
+}
+
+.gia-wf-region[data-area='top'] > .gia-wf-el,
+.gia-wf-region[data-area='bottom'] > .gia-wf-el {
+  flex: 1 1 14rem;
+}
+
+.gia-wf-el {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  min-width: 0;
+}
+
+.gia-wf-el-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.6rem;
+}
+
+.gia-wf-el-label {
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+/* The tag: a contract operation is solid, a design proposal is dotted and muted. */
+.gia-wf-tag {
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--accent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72em;
+  line-height: 1.5;
+}
+
+.gia-wf-tag[data-source='design'] {
+  border-style: dotted;
+  border-color: var(--muted);
+  color: var(--muted);
+}
+
+.gia-wf-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gia-wf-item {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  font-size: 0.8em;
+}
+
+.gia-wf-item[data-disabled='true'] {
+  border-style: dashed;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Rows of a list and of a report read as lines, not as pills. */
+.gia-wf-el[data-kind='list'] .gia-wf-items,
+.gia-wf-el[data-kind='report'] .gia-wf-items {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.25rem;
+}
+
+.gia-wf-el[data-kind='list'] .gia-wf-item,
+.gia-wf-el[data-kind='report'] .gia-wf-item {
+  border-radius: 4px;
+}
+
+.gia-wf-input {
+  display: block;
+  min-height: 1.7rem;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+}
+
+.gia-wf-check {
+  flex: none;
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  align-self: center;
+}
+
+/* The drawing surface: hatched so it cannot be mistaken for an image. */
+.gia-wf-el[data-kind='canvas'] {
+  min-height: 11rem;
+  border-style: dashed;
+  background: repeating-linear-gradient(135deg, var(--border) 0 1px, var(--surface) 1px 14px);
+}
+
+.gia-wf-el[data-kind='canvas'] .gia-wf-el-head {
+  align-self: flex-start;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.gia-wf-el[data-kind='button'] {
+  border-color: var(--accent);
+  border-style: dashed;
+}
+
+.gia-wf-el[data-kind='notice'] {
+  border-left: 3px solid var(--warning);
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface));
+}
+
+.gia-wf-legend {
+  margin: 0.75rem 0.9rem 0.9rem;
+  color: var(--muted);
+  font-size: 0.8em;
+}
+
+@media (max-width: 40rem) {
+  .gia-wf-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
