@@ -268,6 +268,20 @@ describe('stop 10 (final): evidence and wording', () => {
     expect(matchesOf(content, LEAK_PATTERNS)).toEqual([]);
   });
 
+  // Audit C6: the repository has no record of an answer; it does not record that there was none.
+  it('says "sin respuesta registrada", never that the supervision did not answer', () => {
+    expect(matchesOf(content, [/sin respuesta(?! registrada)/i, /no respondi/i])).toEqual([]);
+    const callout = allBlocks.find((block) => block.kind === 'callout');
+    expect(callout?.kind === 'callout' ? callout.text : '').toContain(
+      'no tienen respuesta registrada en el repositorio',
+    );
+    expect(diagram('estado-final').source).toContain('(S14, sin respuesta registrada)');
+    expect(diagram('estado-final').caption).toContain('no tienen respuesta registrada');
+    expect(table('aceptacion').rows[4]?.falta).toContain(
+      'sin fecha ni acceso registrados (S2, S3)',
+    );
+  });
+
   it('gives every diagram and table a title, a summary or caption and sources', () => {
     for (const item of content.diagrams) {
       expect(item.title.length).toBeGreaterThan(0);

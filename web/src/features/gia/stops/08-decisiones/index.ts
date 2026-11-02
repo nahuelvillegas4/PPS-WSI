@@ -1,7 +1,7 @@
 import { ADRS, adrQuadrants, type QuadrantCell } from '../../data/adrs';
 import { FACTS } from '../../model/facts';
 import type { Section, StopContent } from '../../model/types';
-import { C1, C1_FOOTNOTE, O1 } from './copy';
+import { C1, C1_FOOTNOTE, O1, STATES_LEGEND } from './copy';
 import { diagrams } from './diagrams';
 import { tables } from './tables';
 
@@ -29,6 +29,7 @@ const section: Section = {
       id: 'adr',
       label: 'Decisiones',
       blocks: [
+        { kind: 'callout', tone: 'info', title: 'Qué significan los estados', text: STATES_LEGEND },
         { kind: 'quadrants', cells: quadrants },
         { kind: 'table', id: 'adrs' },
       ],

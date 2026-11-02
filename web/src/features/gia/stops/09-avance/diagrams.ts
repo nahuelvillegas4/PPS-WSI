@@ -61,17 +61,30 @@ function ganttLine({ label, start, days }: PlanBar, tags = ''): string {
 }
 
 /**
- * What was done, by the date of the commit that brought it to `main` (an upper bound: the work
- * is older). Checked with `git log 2584cfc`: the base, tiles and contract 0.1 and the first API
- * day are of 17/10, the API closed I3 on 28/10, the login and catalog of the web on 24/10 and the
- * scope change on 31/10 and 01/11.
+ * What was done, by the date of the commit (an upper bound: the work is older). Checked with
+ * `git log 2584cfc` and the reflog of `main`: the base, tiles and contract 0.1 and the first API
+ * day are of 17/10, the content of I3 of the API is of 28/10, the login and catalog of the web of
+ * 24/10. The contract 0.2.0 and the ADR-15 to 17 were committed on 31/10 on a local branch and
+ * reached `main` on 01/11 in one push together with the code (5 code commits of 01/11).
+ *
+ * The logbook of the PPS 2 dates the same days of work 0 to 5 days after these commits (Día 2:
+ * 20/10 against 17/10, Día 6: 26/10 against 21/10, Día 10: 30/10 against 28/10), so the two
+ * sources do not agree and the page says so.
  */
 export const DONE: readonly { bar: PlanBar; tags: string }[] = [
   { bar: { label: 'Base, teselas y contrato 0.1', start: '2026-10-17', days: 1 }, tags: 'done, ' },
-  { bar: { label: 'API hasta I3', start: '2026-10-17', days: 12 }, tags: 'done, ' },
+  { bar: { label: 'API, contenido de I3', start: '2026-10-17', days: 12 }, tags: 'done, ' },
   { bar: { label: 'Ingreso y catálogo web', start: '2026-10-24', days: 1 }, tags: 'active, ' },
   {
-    bar: { label: 'Roles y subida (en main, sin aprobación)', start: '2026-10-31', days: 2 },
+    bar: { label: 'Contrato 0.2.0 y ADR-15 a 17 propuestos', start: '2026-10-31', days: 1 },
+    tags: 'active, ',
+  },
+  {
+    bar: {
+      label: 'Roles y subida (en main, sin aprobación)',
+      start: '2026-11-01',
+      days: 1,
+    },
     tags: 'crit, active, ',
   },
 ];
@@ -100,8 +113,9 @@ export const hojaDeRuta: DiagramDef = {
   kind: 'gantt',
   title: `Plan frente a lo hecho (corte ${SNAPSHOT.label})`,
   summary:
-    'Diagrama de Gantt: arriba el plan de la hoja de ruta v0.9, de I0 a I5, desde el 19/10/2026 hasta el cierre del 16/12/2026; abajo lo hecho según la fecha de commit. La API llegó al incremento I3 el 28/10, el ingreso y el catálogo de la web son del 24/10, los roles y la subida del 31/10 al 01/11 y el editor de la SPA figura sin empezar al 02/11/2026.',
-  caption: 'La fecha de git es una cota superior del trabajo.',
+    'Diagrama de Gantt: arriba el plan de la hoja de ruta v0.9, de I0 a I5, desde el 19/10/2026 hasta el cierre del 16/12/2026; abajo lo hecho según la fecha de commit. El contenido de I3 de la API es del 28/10, el ingreso y el catálogo de la web del 24/10, el contrato 0.2.0 y los ADR-15 a 17 del 31/10 y los roles y la subida llegaron a main el 01/11; el editor de la SPA figura sin empezar al 02/11/2026.',
+  caption:
+    'La fecha de git es una cota superior del trabajo; la bitácora de la PPS 2 fecha esas jornadas entre 0 y 5 días después.',
   source,
   usesStatus: false,
   sources: [

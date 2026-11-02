@@ -131,15 +131,34 @@ export const DOC_ROWS: readonly DocRow[] = [
     evidence: ['compose.yaml', 'web/src/features/upload/UploadImagesModal.tsx'],
   },
   {
-    files: 'docs/BITACORA_PPS2.md (Día 7, líneas 302 y 308)',
+    files:
+      'docs/BITACORA_PPS2.md (Día 7, líneas 302 y 308): registro histórico del 27/10, describe el estado de ese día',
     claims: 'Subir imágenes a un dataset lo puede hacer cualquier usuario autenticado',
     reality:
-      'Subir exige el permiso image.upload (administración del proyecto o global) y registrar por clave del volumen es solo de la administración global',
+      'Subir exige hoy el permiso image.upload (administración del proyecto o global) y registrar por clave del volumen es solo de la administración global',
     quotes: [{ file: 'docs/BITACORA_PPS2.md', text: 'por cualquier usuario autenticado' }],
     evidence: [
       'api/src/Pps.Domain/Access/Permission.cs',
       'api/src/Pps.Api/Controllers/Images/ImagesController.cs',
     ],
+  },
+  {
+    files: 'docs/arquitectura: 03 (línea 69) y 01 (línea 94)',
+    claims:
+      'El cliente de la SPA usa tipos generados desde la OpenAPI y la biblioteca openapi-fetch',
+    reality:
+      'El cliente de la web se escribió a mano (shared/api.ts) y la web no depende de ninguna de las dos bibliotecas (ver el ADR-05 en la tabla de decisiones)',
+    quotes: [
+      {
+        file: 'docs/arquitectura/03-bloques-y-ejecucion.md',
+        text: 'tipos generados · openapi-fetch',
+      },
+      {
+        file: 'docs/arquitectura/01-introduccion-y-restricciones.md',
+        text: 'openapi-typescript · openapi-fetch',
+      },
+    ],
+    evidence: ['web/src/shared/api.ts', 'web/package.json'],
   },
   {
     files: 'docs/arquitectura: 04 (línea 221) y 06 (línea 60)',
@@ -164,7 +183,7 @@ export function docsDesactualizadasTable(rows: readonly DocRow[] = DOC_ROWS): Ta
   return {
     id: 'docs-desactualizadas',
     title: 'Documentos que ya no coinciden con el código',
-    caption: `Comparados con el código al ${SNAPSHOT.label} (commit ${SNAPSHOT.commit}). Cuando hay diferencia, vale el código y el ADR.`,
+    caption: `Comparados con el código al ${SNAPSHOT.label} (commit ${SNAPSHOT.commit}). Cuando hay diferencia, vale el código; los ADR propuestos todavía esperan la validación de la supervisión.`,
     columns: [
       { key: 'files', label: 'Archivo' },
       { key: 'claims', label: 'Afirma' },
@@ -194,7 +213,7 @@ const section: Section = {
         {
           kind: 'callout',
           tone: 'info',
-          text: 'Los documentos de arquitectura se actualizan cuando la supervisión resuelva el cambio de alcance (lista del ADR-15). Los README de cada módulo describen un estado anterior de ese módulo.',
+          text: 'Los documentos de arquitectura de la lista del ADR-15 se actualizan cuando la supervisión resuelva el cambio de alcance. Los README de cada módulo describen un estado anterior de ese módulo. La bitácora es un registro con fecha: describe el estado de su día.',
         },
         { kind: 'table', id: 'docs-desactualizadas' },
       ],
@@ -203,7 +222,7 @@ const section: Section = {
   notes: [
     'Si alguien abre uno de estos documentos, la diferencia con el código ya está explicada en esta página.',
     'Cada fila cita lo que el documento afirma y lo que dice el código hoy.',
-    'Los documentos de arquitectura esperan la respuesta de la supervisión (ADR-15, lista de documentos a actualizar).',
+    'Los documentos de arquitectura de la lista del ADR-15 esperan la respuesta de la supervisión.',
   ],
 };
 

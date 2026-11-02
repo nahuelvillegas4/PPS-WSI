@@ -38,7 +38,10 @@ export const EPICS: readonly EpicRow[] = [
   },
   {
     epic: 'E2 Autenticación y usuarios',
-    api: chip('done', 'Cookie de sesión, alta y edición de usuarios y bloqueo por intentos (429)'),
+    api: chip(
+      'partial',
+      'Cookie de sesión, alta y edición de usuarios y bloqueo por intentos (429); falta el validador de sesión y la regla protected-user',
+    ),
     web: chip('done', 'Pantalla de ingreso y pantalla de usuarios'),
     evidence: [
       'api/src/Pps.Api/Controllers/Auth/AuthController.cs',
@@ -56,8 +59,14 @@ export const EPICS: readonly EpicRow[] = [
   },
   {
     epic: 'E4 Registro de imágenes',
-    api: chip('done', 'Explorador del volumen, registro por clave y subida multipart'),
-    web: chip('done', 'Ventana de registro y ventana de subida'),
+    api: chip(
+      'partial',
+      'Explorador del volumen, registro por clave y subida multipart; la subida puede sobrescribir un archivo y no tiene prefiltro 413 ni 507',
+    ),
+    web: chip(
+      'partial',
+      'Ventana de registro y ventana de subida con cola, progreso y cancelación; sin reintento por archivo',
+    ),
     evidence: [
       'api/src/Pps.Api/Controllers/Images/ImagesController.cs',
       'web/src/features/upload/UploadImagesModal.tsx',
@@ -115,7 +124,7 @@ export const EPICS: readonly EpicRow[] = [
     epic: 'E10 Despliegue y documentación',
     api: chip(
       'composeServer',
-      'Sin servidor del laboratorio (S2 sin respuesta), manuales, informe final ni backlog',
+      'Sin servidor del laboratorio (S2, sin respuesta registrada), manuales, informe final ni backlog',
     ),
     web: chip('planned', 'Pantallas de gestión completas y manuales (I5)'),
     evidence: [
@@ -135,7 +144,7 @@ export function epicasTable(rows: readonly EpicRow[] = EPICS): TableDef {
   return {
     id: 'epicas',
     title: 'Avance por épica',
-    caption: `Épicas del mapa de la arquitectura (§14), contra el código de main al ${SNAPSHOT.label} (commit ${SNAPSHOT.commit}). Lo que ya existe en la API pero no en la interfaz figura como planificado en la columna Interfaz.`,
+    caption: `Épicas del mapa de la arquitectura (§14), contra el código de main al ${SNAPSHOT.label} (commit ${SNAPSHOT.commit}). Implementado quiere decir que la función existe; las brechas conocidas figuran como Parcial, y varias también en la pestaña Deuda y seguridad. Lo que ya existe en la API pero no en la interfaz figura como planificado en la columna Interfaz.`,
     columns: [
       { key: 'epic', label: 'Épica' },
       { key: 'api', label: 'API o servicio', filterable: true },
@@ -162,7 +171,10 @@ export interface DebtRow {
 
 /**
  * Known debt and security gaps, from the ADRs and the code. A row names a gap, never a value:
- * no password, key, port or address appears here, and a test scans for them.
+ * no password, key, port or address appears here, and a test scans for them. The bundle of the
+ * page is public (design, risk 1), so the rows about credentials, the published ports and the
+ * startup cite the ADR that records the gap and not the line of code that has it; the test of
+ * this stop still checks those lines against the code (`CODE_CLAIMS`).
  */
 export const DEBT: readonly DebtRow[] = [
   {
@@ -190,21 +202,18 @@ export const DEBT: readonly DebtRow[] = [
     topic:
       'Los puertos de la base de datos y de la API se publican en todas las interfaces en desarrollo',
     state: labelled('planned', ' (ADR-16)'),
-    evidence: ['compose.yaml:11-12', 'compose.yaml:36-39'],
+    evidence: ['docs/adr/0016-autorizacion-por-proyecto-y-sesion.md:59'],
   },
   {
     topic:
-      'Contraseñas por defecto: la del administrador inicial está escrita en el código y la de la base de datos, en el Compose',
+      'Credenciales de desarrollo por defecto en la configuración inicial; el ADR-16 propone exigir la del administrador en el primer arranque',
     state: labelled('planned'),
-    evidence: [
-      'api/src/Pps.Infrastructure/Persistence/DatabaseInitializer.cs:28',
-      'compose.yaml:9',
-    ],
+    evidence: ['docs/adr/0016-autorizacion-por-proyecto-y-sesion.md:58'],
   },
   {
     topic: 'El arranque registra cualquier error de migración como aviso y sigue',
     state: labelled('planned', ' (ADR-16)'),
-    evidence: ['api/src/Pps.Infrastructure/Persistence/DatabaseInitializer.cs:50-53'],
+    evidence: ['docs/adr/0016-autorizacion-por-proyecto-y-sesion.md:56'],
   },
   {
     topic:
@@ -223,7 +232,7 @@ export const DEBT: readonly DebtRow[] = [
   },
   {
     topic:
-      'El bloqueo de ingreso vive en memoria: cualquiera sin sesión puede provocarlo y se pierde al reiniciar',
+      'El bloqueo de ingreso por intentos fallidos sigue pendiente de resolver: vive en memoria y se pierde al reiniciar',
     state: labelled('planned', ' (ADR-16)'),
     evidence: ['docs/adr/0016-autorizacion-por-proyecto-y-sesion.md:85'],
   },

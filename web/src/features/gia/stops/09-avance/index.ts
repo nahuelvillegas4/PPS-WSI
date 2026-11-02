@@ -19,7 +19,7 @@ const section: Section = {
   id: 'avance',
   group: 'recorrido',
   title: 'Avance',
-  headline: 'La API va adelantada al plan; la interfaz de anotación y el despliegue, por detrás.',
+  headline: 'La API tiene hecho el contenido de I3; el editor y el despliegue van por detrás.',
   minutes: 2,
   tabs: [
     {
@@ -31,7 +31,7 @@ const section: Section = {
           kind: 'callout',
           tone: 'info',
           title: 'Cómo leerlo',
-          text: `Arriba, el plan de la hoja de ruta v0.9; abajo, lo hecho según la fecha del commit que lo trajo a main. Las barras no son horas trabajadas. La API cerró el incremento I3 el 28/10/2026, unas cuatro semanas antes del fin previsto de ese incremento, y el editor de la SPA, que es el camino crítico, no empezó. La línea vertical marca la fecha actual del navegador; los datos son del ${SNAPSHOT.label}.`,
+          text: `Arriba, el plan de la hoja de ruta v0.9; abajo, lo hecho según la fecha de git. Las barras no son horas trabajadas. El contenido de I3 en la API (ciclo de vida de anotaciones, importación CRIC y exportación COCO) está en main desde el commit del 28/10/2026. El criterio de salida de I3, el guion de aceptación en una instalación limpia, figura como pendiente en la bitácora de la PPS 2 (Día 11). El editor de la SPA, que es el camino crítico, no empezó. La bitácora fecha esas mismas jornadas entre 0 y 5 días después que git; por ejemplo, la jornada del cierre de I3: 28/10 en git y 30/10 en la bitácora. La línea vertical marca la fecha actual del navegador; los datos son del ${SNAPSHOT.label}.`,
         },
       ],
     },
@@ -52,8 +52,8 @@ const section: Section = {
     },
   ],
   notes: [
-    'La API llegó a I3 antes de lo previsto; el editor es el camino crítico.',
-    'Las fechas de git son una cota superior: la bitácora fecha jornadas y git fecha commits.',
+    'El contenido de I3 de la API está hecho; el editor es el camino crítico.',
+    'Las fechas son las de git; la bitácora de la PPS 2 fecha esas mismas jornadas entre 0 y 5 días después.',
     'Deuda y seguridad: se muestra lo pendiente tal cual está, con su evidencia.',
     'Próximo paso crítico: el editor de anotaciones en la web, sobre la API ya lista.',
   ],

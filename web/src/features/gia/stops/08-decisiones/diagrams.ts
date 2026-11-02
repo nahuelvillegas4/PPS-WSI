@@ -14,7 +14,7 @@ import type { DiagramDef } from '../../model/types';
 const source = `stateDiagram-v2
     direction LR
     state "Propuesto<br/>ADR-15 a 17 y contrato 0.2.0<br/>31/10/2026" as Propuesto
-    state "${g('partial')} En main<br/>commits 7a11164..2584cfc<br/>01/11/2026" as EnMain
+    state "${g('partial')} En main<br/>5 commits, 7a11164 a 2584cfc<br/>01/11/2026" as EnMain
     state "${g('planned')} Aprobación escrita<br/>PENDIENTE" as Aprobacion
     state "${g('planned')} Contrato 1.0.0<br/>PENDIENTE" as Contrato
     [*] --> Propuesto
@@ -28,7 +28,7 @@ export const cambioAlcance: DiagramDef = {
   kind: 'state',
   title: 'Cambio de alcance',
   summary:
-    'Línea de estados del cambio de alcance: propuesto el 31/10/2026 con los ADR-15 a 17 y el contrato 0.2.0, ya en main desde el 01/11/2026, con la aprobación escrita de la supervisión y el contrato 1.0.0 pendientes.',
+    'Línea de estados del cambio de alcance: propuesto el 31/10/2026 con los ADR-15 a 17 y el contrato 0.2.0, y en main desde el 01/11/2026 junto con el código (5 commits), con la aprobación escrita de la supervisión y el contrato 1.0.0 pendientes.',
   source,
   usesStatus: true,
   sources: [

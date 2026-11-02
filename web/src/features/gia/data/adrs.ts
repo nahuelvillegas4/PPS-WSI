@@ -43,6 +43,8 @@ export const ADRS: readonly AdrRow[] = [
   },
   {
     n: 4,
+    // The only reworded title: the index says "protegidas", a word the page does not use. The
+    // caption of the `adrs` table says so, and a test fails if another title differs.
     title: 'Sesión por cookie de punta a punta; teselas autorizadas con auth_request',
     decision: 'DECIDIDO',
     qualifier:

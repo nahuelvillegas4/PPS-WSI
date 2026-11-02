@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { content as a6 } from '../../anexos/a6-glosario';
 import { GLOSSARY } from '../../anexos/a6-glosario';
-import { ACCESS_CLAIM, FOOTER_TEXT, content as a7 } from '../../anexos/a7-fuentes';
+import { ACCESS_CLAIM, FOOTER_TEXT, PUBLIC_CONTENT, content as a7 } from '../../anexos/a7-fuentes';
 import { FACTS } from '../../model/facts';
 import { FEATURES } from '../../model/features';
 import { SNAPSHOT, STATUS_META } from '../../model/status';
@@ -11,6 +11,7 @@ import type { Cell, StopContent, TableDef } from '../../model/types';
 import {
   CLAIM_PATTERNS,
   LEAK_PATTERNS,
+  collectStrings,
   evidenceProblems,
   matchesOf,
 } from '../10-final/unitChecks.testing';
@@ -93,6 +94,15 @@ describe('annex A6 (glosario)', () => {
     expect(cells.WSI).toBe('WSI');
   });
 
+  // Audit C8: DECIDIDO and PROPUESTO are used on the page, so the glossary defines them.
+  it('defines DECIDIDO and PROPUESTO as the architecture README does', () => {
+    const byTerm = Object.fromEntries(GLOSSARY.map((entry) => [entry.term, entry.meaning]));
+    expect(byTerm.DECIDIDO).toContain('lo acordaron los dos estudiantes entre sí');
+    expect(byTerm.DECIDIDO).toContain('No es una aprobación de la supervisión');
+    expect(byTerm.PROPUESTO).toContain('necesita validación de la supervisión');
+    expect(byTerm.ADR).toContain('DECIDIDO o PROPUESTO');
+  });
+
   it('reads its numbers from FACTS and the status of planned items from FEATURES', () => {
     const byTerm = Object.fromEntries(GLOSSARY.map((entry) => [entry.term, entry.meaning]));
     expect(byTerm.ADR).toContain(String(FACTS.adrs));
@@ -134,6 +144,17 @@ describe('annex A7 (fuentes)', () => {
       tab.blocks.flatMap((block) => (block.kind === 'callout' ? [block.text] : [])),
     );
     expect(callouts).toContain(ACCESS_CLAIM);
+  });
+
+  // Audit C7: the content is public for whoever reaches the gateway and includes the debt list.
+  it('says that the content is public and includes the list of security debt', () => {
+    expect(PUBLIC_CONTENT).toContain('es público para quien alcance la pasarela');
+    expect(PUBLIC_CONTENT).toContain('incluye la lista de deuda de seguridad');
+    expect(PUBLIC_CONTENT).toContain('no valores ni credenciales');
+    const callouts = a7.section.tabs.flatMap((tab) =>
+      tab.blocks.flatMap((block) => (block.kind === 'callout' ? [block] : [])),
+    );
+    expect(callouts.find((callout) => callout.text === PUBLIC_CONTENT)?.tone).toBe('honest');
   });
 
   it('quotes the footer of the page with the date and commit of the snapshot', () => {
@@ -192,6 +213,15 @@ describe('annex A7 (fuentes)', () => {
   });
 
   it('never names a person, hours or per-author figures', () => {
-    expect(matchesOf(a7, [/\bhoras?\b/i, /por autor/i, /bitácora/i])).toEqual([]);
+    expect(matchesOf(a7, [/\bhoras?\b/i, /por autor/i])).toEqual([]);
+  });
+
+  // Audit C10: git and the logbook date the same days differently, and the page says so. The
+  // logbook is still individual evaluation data, so A7 may name it only to speak of dates.
+  it('names the logbook only to say that its dates differ from the dates of git', () => {
+    const mentions = collectStrings(a7).filter((text) => /bitácora/i.test(text));
+    expect(mentions).toHaveLength(1);
+    expect(mentions[0]).toContain('entre 0 y 5 días después que git');
+    expect(mentions[0]).toMatch(/fecha/);
   });
 });

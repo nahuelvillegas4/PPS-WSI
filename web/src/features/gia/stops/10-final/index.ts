@@ -30,7 +30,7 @@ const section: Section = {
           kind: 'callout',
           tone: 'honest',
           title: 'Sin decidir',
-          text: 'El servidor del laboratorio (S2) y el acceso externo con TLS (S3) siguen sin respuesta. Todo lo punteado de la franja de operación es una propuesta: no existe en el repositorio.',
+          text: 'El servidor del laboratorio (S2) y el acceso externo con TLS (S3) no tienen respuesta registrada en el repositorio. Todo lo punteado de la franja de operación es una propuesta: no existe en el repositorio.',
         },
       ],
     },

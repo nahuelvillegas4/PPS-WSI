@@ -10,6 +10,14 @@ import type { Section, StopContent, TableDef } from '../model/types';
 export const ACCESS_CLAIM =
   'Visible solo para una sesión con rol administrador global. El contenido no es secreto y la restricción es de la interfaz, no del servidor.';
 
+/**
+ * What the restriction of C2 leaves out: the content travels in the files of the interface, which
+ * the gateway hands out without asking for a session (`deploy/gateway/nginx.conf`, `/assets/`),
+ * and it includes the list of security debt of the progress stop.
+ */
+export const PUBLIC_CONTENT =
+  'El contenido forma parte de los archivos de la interfaz, que la pasarela entrega sin pedir sesión: es público para quien alcance la pasarela e incluye la lista de deuda de seguridad (Avance, pestaña Deuda y seguridad). Esa lista nombra brechas, no valores ni credenciales.';
+
 /** C11: the footer of the page. */
 export const FOOTER_TEXT = `Datos al ${SNAPSHOT.label} · commit ${SNAPSHOT.commit} · confeccionado a mano; ver Fuentes y método`;
 
@@ -70,14 +78,14 @@ const table: TableDef = {
       verificado:
         'Son el registro de una ejecución, no un dato derivado del código: llevan fecha, commit y método. Lo que sí sale del código es el recuento de pruebas declaradas.',
       pendiente:
-        'La API se probó con un binario compilado el 01/11 en un contenedor, con nombres de pruebas idénticos a HEAD, sobre SQLite y sin capa HTTP. Ninguna prueba automática abre una lámina SVS real. Las comprobaciones manuales del equipo no se pueden reproducir desde el repositorio.',
+        'Las pruebas de la API se corrieron el 01/11 en un contenedor (el código de la API no cambió desde el commit 871f574), sobre SQLite y sin capa HTTP. Ninguna prueba automática abre una lámina SVS real. Las comprobaciones manuales del equipo no se pueden reproducir desde el repositorio.',
     },
     {
       dato: 'Despliegue actual: contenedores, volúmenes y pasarela',
       verificado:
         'Lectura de compose.yaml, de la configuración de la pasarela y de los Dockerfile; observación del sistema local en ejecución el 02/11, solo lectura.',
       pendiente:
-        'Un despliegue en el servidor del laboratorio (sin fecha ni acceso). La autorización real de teselas de punta a punta, porque el sistema local corre con la variante de desarrollo. El arranque desde cero en otra máquina.',
+        'Un despliegue en el servidor del laboratorio (sin fecha ni acceso registrados). La autorización real de teselas de punta a punta, porque el sistema local corre con la variante de desarrollo. El arranque desde cero en otra máquina.',
     },
     {
       dato: 'Estado final propuesto: despliegue, pantallas y criterios de aceptación',
@@ -98,7 +106,7 @@ const table: TableDef = {
       verificado:
         'Las fechas del plan salen del documento de arquitectura; las de lo hecho, de las fechas de commit de git.',
       pendiente:
-        'La fecha de un commit es una cota superior del trabajo, porque varias tandas se confirmaron juntas. El esfuerzo individual no forma parte de esta página.',
+        'La fecha de un commit es una cota superior del trabajo, porque varias tandas se confirmaron juntas. La bitácora de la PPS 2 fecha esas mismas jornadas entre 0 y 5 días después que git, y esta página no concilia esa diferencia. El esfuerzo individual no forma parte de esta página.',
     },
     {
       dato: 'Documentación desactualizada (anexo A5)',
@@ -148,6 +156,12 @@ const section: Section = {
       label: 'Método',
       blocks: [
         { kind: 'callout', tone: 'info', title: 'Qué es esta página', text: ACCESS_CLAIM },
+        {
+          kind: 'callout',
+          tone: 'honest',
+          title: 'Quién puede leerla',
+          text: PUBLIC_CONTENT,
+        },
         {
           kind: 'callout',
           tone: 'honest',

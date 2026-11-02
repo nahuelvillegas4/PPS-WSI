@@ -72,7 +72,7 @@ export const ACCEPTANCE: readonly AcceptanceCriterion[] = [
     today:
       'Exportación por API en JSON interno y COCO; por defecto exporta solo las anotaciones propias.',
     missing: 'Pantalla de exportación; YOLO responde 422 (formato condicional, ADR-10).',
-    status: 'done',
+    status: 'partial',
   },
   {
     id: 'servidor',
@@ -81,7 +81,7 @@ export const ACCEPTANCE: readonly AcceptanceCriterion[] = [
       'Levantar la solución con la documentación entregada: en el servidor del laboratorio (PPS 1) y con Docker Compose (PPS 2)',
     today:
       'Docker Compose de cuatro servicios en la máquina local, descrito en el README; el ensayo desde cero en una máquina limpia no está verificado.',
-    missing: `Servidor del laboratorio sin fecha ni acceso (S2, S3). Faltan ${joinList([
+    missing: `Servidor del laboratorio sin fecha ni acceso registrados (S2, S3). Faltan ${joinList([
       ...MISSING_SERVER_PIECES,
       'manual de uso',
     ])}.`,

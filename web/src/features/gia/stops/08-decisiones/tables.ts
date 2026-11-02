@@ -21,7 +21,7 @@ export function adrsTable(rows: readonly AdrRow[] = ADRS): TableDef {
   return {
     id: 'adrs',
     title: `Las ${rows.length} decisiones de arquitectura`,
-    caption: `La columna Decisión copia el índice de docs/adr/README.md. La columna En código es una verificación aparte, al ${SNAPSHOT.label}: una decisión propuesta puede estar construida y una decidida puede estar a medias.`,
+    caption: `La columna Decisión copia el índice de docs/adr/README.md, y los títulos también, salvo el del ADR-04, donde "autorizadas" reemplaza la palabra del índice. La columna En código es una verificación aparte, al ${SNAPSHOT.label}: una decisión propuesta puede estar construida y una decidida puede estar a medias.`,
     columns: [
       { key: 'adr', label: 'ADR' },
       { key: 'title', label: 'Título' },
@@ -52,7 +52,7 @@ export function tresEjesTable(): TableDef {
     id: 'tres-ejes',
     title: 'Código, decisión y aprobación son tres cosas distintas',
     caption:
-      'NO REGISTRADA quiere decir que el repositorio no tiene el registro de la aprobación escrita de la supervisión. La contrapartida de esfuerzo es el alcance que los enunciados piden retirar al sumar alcance nuevo (PPS 1 §10 y PPS 2 §9).',
+      'NO REGISTRADA quiere decir que el repositorio no tiene el registro de la aprobación escrita de la supervisión. Sobre el alcance nuevo, PPS 1 §10 dice que no se agregan requisitos obligatorios sin retirar otros; PPS 2 §9, que lo adicional se aborda después de probar y documentar el flujo central y que todo ajuste preserva una entrega independiente y útil.',
     columns: [
       { key: 'feature', label: 'Funcionalidad' },
       { key: 'code', label: 'Código' },
@@ -66,7 +66,7 @@ export function tresEjesTable(): TableDef {
           'Roles por proyecto, autorización por proyecto y subida desde el navegador (ADR-15, 16 y 17)',
         code: {
           status: 'partial',
-          text: 'IMPLEMENTADO PARCIALMENTE en main (01/11/2026, commits 7a11164..2584cfc)',
+          text: 'IMPLEMENTADO PARCIALMENTE en main (01/11/2026; 5 commits, de 7a11164 a 2584cfc)',
         },
         decision: { decision: 'PROPUESTO' },
         approval: { approval: 'NO_REGISTRADA' },
@@ -83,7 +83,7 @@ export function tresEjesTable(): TableDef {
         feature: 'Contrato 0.2.0 (la versión 1.0.0 no se etiqueta sin aprobación escrita)',
         code: {
           status: 'partial',
-          text: 'Escrito y en main el 31/10/2026; la API aún no aplica todas sus respuestas',
+          text: 'Escrito el 31/10/2026 y en main desde el 01/11/2026, junto con el código; la API aún no aplica todas sus respuestas',
         },
         decision: { decision: 'PROPUESTO' },
         approval: { approval: 'NO_REGISTRADA' },
@@ -133,14 +133,14 @@ export function alcanceAgregadoTable(): TableDef {
       origin: 'Pedido del profesor, 31/10/2026 (contexto del ADR-15)',
       approval: { approval: 'NO_REGISTRADA' },
       friction:
-        'PPS 1 §4 no exige gestión compleja de roles y PPS 2 §3.3 pide autenticación local básica; PPS 1 §10 y PPS 2 §9 piden retirar un alcance comparable',
+        'PPS 1 §4 no exige gestión compleja de roles y PPS 2 §3.3 pide autenticación local básica. PPS 1 §10 dice que no se agregan requisitos obligatorios sin retirar otros; PPS 2 §9 deja lo adicional para después de probar y documentar el flujo central',
     },
     {
       scope: `Autorización única por proyecto: ${FACTS.operations} operaciones con rol mínimo, 404 a quien no es miembro, 403 por rol insuficiente y teselas por membresía`,
       origin: 'Decisión del ADR-16',
       approval: { approval: 'NO_REGISTRADA' },
       friction:
-        'El mismo roce que los roles. Falta el validador de sesión, la guarda Sec-Fetch-Site, el 429 al asignar miembros y protected-user',
+        'El mismo roce que los roles (PPS 1 §10 y PPS 2 §9). Falta el validador de sesión, la guarda Sec-Fetch-Site, el 429 al asignar miembros y protected-user',
     },
     {
       scope: 'Pantallas de usuarios (administración global) y de miembros de un proyecto',
@@ -149,8 +149,9 @@ export function alcanceAgregadoTable(): TableDef {
       friction: 'El pendiente S12 proponía altas de usuarios sin pantalla',
     },
     {
-      scope: 'Subida de imágenes desde el navegador: varios archivos, progreso y cancelación',
-      origin: 'La supervisión, tras la muestra del 27/10/2026 (bitácora de la PPS 2, Día 7)',
+      scope: 'Subida de imágenes desde el navegador',
+      origin:
+        'Se encomendó la subida (ADR-15, motivo; bitácora de la PPS 2, Día 7, 27/10/2026). La cola de archivos, el progreso y la cancelación son diseño del equipo (ADR-17)',
       approval: { approval: 'NO_REGISTRADA' },
       friction:
         'PPS 2 §3.1 solo pide registrar imágenes disponibles en el servidor. Faltan el prefiltro, el archivo .part y la ubicación de Nginx de 1800 s',
@@ -203,11 +204,11 @@ export function alcanceAgregadoTable(): TableDef {
     id: 'alcance-agregado',
     title: 'Alcance que el equipo agregó más allá de los enunciados',
     caption:
-      'Los cuatro primeros son el cambio de alcance: su aprobación no consta en el repositorio. En los demás, la columna muestra el estado de la decisión de arquitectura.',
+      'Los cuatro primeros son el cambio de alcance: su aprobación no consta en el repositorio. En los demás, la columna muestra el estado del ADR: DECIDIDO quiere decir acordado entre los dos estudiantes, no validado por la supervisión.',
     columns: [
       { key: 'scope', label: 'Alcance' },
       { key: 'origin', label: 'Origen' },
-      { key: 'approval', label: 'Aprobación o decisión' },
+      { key: 'approval', label: 'Aprobación o estado del ADR' },
       { key: 'friction', label: 'Roce con el enunciado' },
     ],
     rows,

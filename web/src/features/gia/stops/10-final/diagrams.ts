@@ -128,7 +128,7 @@ const FINAL_STATE: DiagramDef = {
   summary:
     'Despliegue final propuesto: el navegador llega, por un acceso externo todavía sin decidir (TLS o proxy del laboratorio), a un servidor del laboratorio o una máquina virtual equivalente (pendientes S2 y P18, riesgo R13). Ahí corren la pasarela, la API, las teselas y la base de datos, con las imágenes y los volúmenes. Una franja de operación planificada suma respaldo, prueba de humo, descarga de muestras, reinicio y límite de logs, e integración continua.',
   caption:
-    'El servidor (S2, P18, riesgo R13) y el acceso externo con TLS (S3, P19) siguen sin respuesta; lo punteado no existe en el repositorio.',
+    'El servidor (S2, P18, riesgo R13) y el acceso externo con TLS (S3, P19) no tienen respuesta registrada en el repositorio; lo punteado no existe en él.',
   source: flowchart('TB', [
     'NAV["Navegador"]',
     node('TLS', 'tls', ['TLS o proxy del laboratorio', '(S3, P19)']),
@@ -145,7 +145,7 @@ const FINAL_STATE: DiagramDef = {
     '  ' + node('SM', 'smoke', ['Prueba de humo', 'del despliegue']),
     '  ' + node('FS', 'fetchSamples', ['Descarga de imágenes', 'de muestra']),
     '  ' + node('RS', 'composeServer', ['Reinicio automático', 'y límite de logs']),
-    '  ' + node('CI', 'ci', ['Integración continua', '(S14 sin respuesta)']),
+    '  ' + node('CI', 'ci', ['Integración continua', '(S14, sin respuesta registrada)']),
     'end',
     node('NOTE', 'planned', [
       'Puertos de la API y de la base',
@@ -188,7 +188,7 @@ const FINAL_STATE: DiagramDef = {
     {
       kind: 'doc',
       ref: 'docs/arquitectura/07-pendientes.md:8-9',
-      note: 'S2 (servidor) y S3 (acceso externo y TLS) sin respuesta',
+      note: 'S2 (servidor) y S3 (acceso externo y TLS): el documento no registra respuesta',
     },
     {
       kind: 'doc',

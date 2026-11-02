@@ -25,17 +25,20 @@ import { formatIssues } from '../../engine/diagramLint';
 import { FACTS } from '../../model/facts';
 import { FEATURES, type FeatureId } from '../../model/features';
 import type { Block, Cell, TableDef } from '../../model/types';
+import { STATES_LEGEND } from './copy';
 import { cambioAlcance } from './diagrams';
 import { content } from './index';
-import { adrsTable, tresEjesTable } from './tables';
+import { adrsTable, alcanceAgregadoTable, tresEjesTable } from './tables';
 
 // The fixed copy, written out again on purpose: an edit of copy.ts must fail here (design 2).
+// C1 no longer says who decided (the task log records one student, not both: audit C3) and says
+// "sin revisión cruzada"; O1 keeps the ADR and the logbook apart (audit C4).
 const C1 =
-  'El ADR-15 (§Plazo y §Verificación) dice que la migración y la pantalla de usuarios no se integran sin aprobación escrita. El código ya está en main desde el 01/11/2026, integrado por decisión de los estudiantes para la demostración del 02/11, sin PR y antes de recibir esa aprobación. El ADR sigue PROPUESTO.';
+  'El ADR-15 (§Plazo y §Verificación) dice que la migración y la pantalla de usuarios no se integran sin aprobación escrita. El código ya está en main desde el 01/11/2026, integrado para la demostración del 02/11, sin PR ni revisión cruzada y antes de recibir esa aprobación. El ADR sigue PROPUESTO.';
 const C1_FOOTNOTE =
   'El texto del ADR-15 menciona la rama feat/roles-por-proyecto-y-subida: se fusionó por avance rápido en main y se borró.';
 const O1 =
-  'Origen: el ADR-15 registra que el pedido de roles por proyecto fue del profesor el 31/10/2026, y la subida desde el navegador se incorporó tras la muestra con la supervisión del 27/10. Lo que no consta en el repositorio es la aprobación escrita ni la contrapartida de esfuerzo.';
+  'Origen: el ADR-15 registra que el profesor pidió los roles por proyecto el 31/10/2026 y que se encomendó también la subida desde el navegador (ADR-17). La bitácora de la PPS 2 (Día 7, 27/10) registra que, tras una muestra con la supervisión, se incorporó la subida directa de imágenes a un dataset. Lo que no consta en el repositorio es la aprobación escrita ni la contrapartida de esfuerzo.';
 const C7 =
   'Reparto del editor: opción A propuesta, sin aprobación de la supervisión; interfaz sin construir';
 const C8 = 'desactualizado: pendiente de actualizar cuando la supervisión apruebe (ADR-15:108-115)';
@@ -175,7 +178,8 @@ describe('what is in code', () => {
       'api/src/Pps.Infrastructure/Storage/PhysicalStorageService.cs',
     );
     expect(storage, 'ADR-17 still overwrites').toContain('FileMode.Create');
-  });
+    // Scanning api/src through import.meta.glob can pass the 5 s default when many workers run (audit C15).
+  }, 30_000);
 
   it('still lacks the lock of NuGet that ADR-14 says is pending', () => {
     expect(matchRepoGlob('**/packages.lock.json'), 'ADR-14').toEqual([]);
@@ -301,7 +305,7 @@ describe('the scope change', () => {
     const [first, editor, contract, docs] = table.rows;
     expect(first?.code).toEqual({
       status: 'partial',
-      text: 'IMPLEMENTADO PARCIALMENTE en main (01/11/2026, commits 7a11164..2584cfc)',
+      text: 'IMPLEMENTADO PARCIALMENTE en main (01/11/2026; 5 commits, de 7a11164 a 2584cfc)',
     });
     expect(first?.decision).toEqual({ decision: 'PROPUESTO' });
     expect(first?.approval).toEqual({ approval: 'NO_REGISTRADA' });
@@ -337,6 +341,105 @@ describe('the scope change', () => {
 
   it('passes the static lint of the diagram engine', () => {
     expect(formatIssues(cambioAlcance)).toEqual([]);
+  });
+
+  // Audit C1: the contract 0.2.0 and the code reached main in the same push, on 01/11.
+  it('dates the contract 0.2.0 on main from 01/11/2026, never on 31/10', () => {
+    const contract = tresEjesTable().rows[2];
+    expect(contract?.code).toEqual({
+      status: 'partial',
+      text: 'Escrito el 31/10/2026 y en main desde el 01/11/2026, junto con el código; la API aún no aplica todas sus respuestas',
+    });
+    expect(JSON.stringify(content)).not.toMatch(/en main el 31\/10/);
+    expect(cambioAlcance.source).toContain('5 commits, 7a11164 a 2584cfc');
+    expect(cambioAlcance.source).not.toContain('7a11164..2584cfc');
+  });
+
+  // Audit C3: the repository does not say that "los estudiantes" decided the integration.
+  it('does not attribute the integration to the students, and says it had no cross review', () => {
+    expect(C1).not.toMatch(/decisi[oó]n de los estudiantes/);
+    expect(C1).toContain('sin PR ni revisión cruzada');
+  });
+
+  // Audit C4: the ADR and the logbook say different things; each source gets only its own.
+  it('keeps what the ADR-15 records apart from what the logbook of the PPS 2 records', async () => {
+    const adr = await readRepoFile('docs/adr/0015-roles-por-proyecto-y-membresia.md');
+    expect(adr).toContain('El profesor pidió dejar la base de roles por proyecto');
+    expect(adr).toContain('se encomendó también registrar imágenes subiéndolas desde el navegador');
+    expect(adr, 'the ADR has no 27/10 and no "muestra": do not attribute them to it').not.toMatch(
+      /27\/10|muestra/i,
+    );
+    const logbook = await readRepoFile('docs/BITACORA_PPS2.md');
+    expect(logbook).toContain('### Día 7:');
+    expect(logbook).toContain('Ajuste de Planificación tras Muestra con la Supervisión');
+    expect(logbook).toContain('subida directa de una o múltiples imágenes');
+    const upload = alcanceAgregadoTable().rows[3];
+    expect(upload?.scope).toBe('Subida de imágenes desde el navegador');
+    expect(upload?.origin).toContain('ADR-15, motivo');
+    expect(upload?.origin).toContain('bitácora de la PPS 2, Día 7');
+    expect(upload?.origin).toContain(
+      'La cola de archivos, el progreso y la cancelación son diseño del equipo',
+    );
+    expect(JSON.stringify(upload)).not.toMatch(/La supervisión, tras la muestra/);
+  });
+
+  // Audit C5: PPS 2 §9 does not ask to withdraw scope; PPS 1 §10 does.
+  it('never says that PPS 2 §9 asks to withdraw scope', () => {
+    const strings = collectStrings(content, 'stop').map((located) => located.text);
+    const about = strings.filter((text) => text.includes('PPS 2 §9'));
+    expect(about.length).toBeGreaterThan(2);
+    for (const text of about) expect(text).not.toMatch(/PPS 2 §9[^;.]*retir/);
+    const caption = tresEjesTable().caption ?? '';
+    expect(caption).toContain(
+      'PPS 1 §10 dice que no se agregan requisitos obligatorios sin retirar otros',
+    );
+    expect(caption).toContain('después de probar y documentar el flujo central');
+    expect(caption).toContain('entrega independiente y útil');
+  });
+});
+
+describe('the states of the ADRs', () => {
+  // Audit C8: DECIDIDO and PROPUESTO were never defined, and DECIDIDO sat under "Aprobación".
+  it('defines DECIDIDO and PROPUESTO above the quadrant, in the words of the architecture README', async () => {
+    const tab = content.section.tabs.find((candidate) => candidate.id === 'adr');
+    expect(tab?.blocks[0]).toEqual({
+      kind: 'callout',
+      tone: 'info',
+      title: 'Qué significan los estados',
+      text: STATES_LEGEND,
+    });
+    expect(tab?.blocks[1]?.kind).toBe('quadrants');
+    expect(STATES_LEGEND).toContain('DECIDIDO: lo acordaron los dos estudiantes entre sí');
+    expect(STATES_LEGEND).toContain('PROPUESTO: recomendación del equipo que necesita validación');
+    expect(STATES_LEGEND).toContain(
+      'Ninguno de los dos estados es una aprobación de la supervisión.',
+    );
+    const readme = await readRepoFile('docs/arquitectura/README.md');
+    expect(readme).toContain(
+      'Lo acordamos entre los dos y no altera alcance, reparto ni criterios de evaluación.',
+    );
+    expect(readme).toContain('Nuestra recomendación.');
+    expect(readme).toContain('necesita validación');
+  });
+
+  it('does not call the decision state of the added scope an approval', () => {
+    const table = alcanceAgregadoTable();
+    const label = table.columns.find((column) => column.key === 'approval')?.label ?? '';
+    expect(label).toBe('Aprobación o estado del ADR');
+    expect(table.caption).toContain('DECIDIDO quiere decir acordado entre los dos estudiantes');
+    expect(table.caption).toContain('no validado por la supervisión');
+  });
+});
+
+describe('the title of the ADR-04', () => {
+  // Audit C11: the page words one title differently from the index; the table has to say so.
+  it('is the only reworded title, and the caption of the table says it', () => {
+    const caption = adrsTable().caption ?? '';
+    expect(caption).toContain('y los títulos también, salvo el del ADR-04');
+    expect(caption).toContain('"autorizadas" reemplaza la palabra del índice');
+    expect(ADRS.find((row) => row.n === 4)?.title).toContain(
+      'teselas autorizadas con auth_request',
+    );
   });
 });
 

@@ -24,7 +24,7 @@ interface GlossaryEntry {
 export const GLOSSARY: readonly GlossaryEntry[] = [
   {
     term: 'ADR',
-    meaning: `Architecture Decision Record: registro corto de una decisión de arquitectura. El repositorio tiene ${FACTS.adrs}, cada uno DECIDIDO o PROPUESTO.`,
+    meaning: `Architecture Decision Record: registro corto de una decisión de arquitectura. El repositorio tiene ${FACTS.adrs}, cada uno DECIDIDO o PROPUESTO (ver esos términos).`,
   },
   {
     term: 'auth_request',
@@ -59,6 +59,11 @@ export const GLOSSARY: readonly GlossaryEntry[] = [
   {
     term: 'CSRF',
     meaning: `Falsificación de petición en sitios cruzados: otro sitio hace que el navegador envíe un pedido con la cookie de la persona. La guarda con Sec-Fetch-Site está propuesta en el ADR-16 (${statusWord('csrfGuard')}).`,
+  },
+  {
+    term: 'DECIDIDO',
+    meaning:
+      'Estado de un ADR: lo acordaron los dos estudiantes entre sí y no altera alcance, reparto ni criterios de evaluación (docs/arquitectura/README.md, §0.1). No es una aprobación de la supervisión.',
   },
   {
     term: 'dryRun',
@@ -113,12 +118,17 @@ export const GLOSSARY: readonly GlossaryEntry[] = [
   {
     term: 'pasarela',
     meaning:
-      'El Nginx que es el único punto de entrada: entrega la interfaz y reenvía /api/ a la API y /tiles/ al servicio de teselas.',
+      'El Nginx que es la puerta de entrada del navegador: entrega la interfaz y reenvía /api/ a la API y /tiles/ al servicio de teselas.',
   },
   {
     term: 'PPS',
     meaning:
       'Práctica Profesional Supervisada. La PPS 1 hace el visor, las teselas y la interfaz; la PPS 2, la API de gestión, la persistencia, la importación y la exportación.',
+  },
+  {
+    term: 'PROPUESTO',
+    meaning:
+      'Estado de un ADR: recomendación del equipo que necesita validación de la supervisión (docs/arquitectura/README.md, §0.1). Hasta entonces la decisión no está validada.',
   },
   {
     term: 'QS',
