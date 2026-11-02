@@ -127,7 +127,7 @@ const PENDING: Readonly<Record<string, PendingNote>> = {
   uploadImages: {
     status: 'planned',
     detail:
-      '413, 507, 409 storage-key-in-use y escritura sin sobrescribir (ADR-17, propuesto); hoy un archivo huérfano con la misma clave se sobrescribe.',
+      '413, 507, 409 storage-key-in-use y escritura sin sobrescribir (ADR-17, propuesto); hoy un archivo huérfano con la misma clave se sobrescribe y, si se corta la copia de un archivo, puede quedar uno parcial en el volumen.',
   },
   importAnnotations: {
     status: 'partial',
@@ -136,11 +136,13 @@ const PENDING: Readonly<Record<string, PendingNote>> = {
   },
   exportDataset: {
     status: 'planned',
-    detail: 'format=yolo responde 422 unsupported-format (ADR-10, condicional).',
+    detail:
+      'format=yolo responde 422 unsupported-format; el ADR-10 lo deja condicional, solo si sobra tiempo.',
   },
   authorizeTileRequest: {
     status: 'planned',
-    detail: 'caché de 5 s y medición de QS-4; hoy cada tesela hace una consulta a la base.',
+    detail:
+      'medir QS-4 (ADR-16, propuesto) y, solo si no se cumple, agregar una caché de 5 s; hoy cada tesela hace una consulta a la base.',
   },
   apiReady: {
     status: 'partial',
@@ -173,6 +175,20 @@ function toOperation(row: FixtureRow): ApiOperation {
 }
 
 export const OPERATIONS: readonly ApiOperation[] = FIXTURE_ROWS.map(toOperation);
+
+/**
+ * Operations the access filter decides with `AccessPolicy.Decide` through `[RequirePermission]`:
+ * those with a project permission, except the gateway's access check, which calls the policy by
+ * hand. A test counts the attributes of the controllers and compares.
+ */
+export const PROJECT_PERMISSION_OPERATIONS = OPERATIONS.filter(
+  (operation) => operation.permission !== null && operation.manualGate !== true,
+).length;
+
+/** Operations reserved to the global admin: the framework decides them from the role in the cookie. */
+export const GLOBAL_ADMIN_OPERATIONS = OPERATIONS.filter(
+  (operation) => operation.minimum === 'global-admin',
+).length;
 
 /** `planned` or `partial` when the operation owes something, `null` when it behaves as documented. */
 export function pendingStatus(

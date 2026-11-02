@@ -58,7 +58,7 @@ function matrixTable(): TableDef {
     id: 'matriz-permisos',
     title: 'Quién puede qué',
     caption:
-      'Cada fila agrupa las operaciones que piden lo mismo y entre paréntesis cuántas son. Un número es la respuesta HTTP que recibe quien no puede. En editar o borrar una anotación hace falta, además del rol, ser su autor: ni la administración global puede hacerlo por otro. La consulta de acceso de la pasarela se cuenta en project.view y no se muestra con su ruta; a un no miembro le responde 403 (nota 2).',
+      'Cada fila agrupa las operaciones que piden lo mismo y entre paréntesis cuántas son. Un número es la respuesta HTTP que recibe quien no puede. En editar o borrar una anotación hace falta, además del rol, ser su autor: ni la administración global puede hacerlo por otro. La consulta de acceso de la pasarela se cuenta en project.view y no se muestra con su ruta; a un no miembro le responde 403 (nota 2). Las operaciones públicas no son todas alcanzables desde el navegador: el estado del servicio no pasa por la pasarela y solo se alcanza dentro de Compose o por la publicación directa de la API.',
     columns: [
       { key: 'requisito', label: 'Requisito de acceso (operaciones)' },
       ...CALLERS.map((caller) => CALLER_COLUMNS[caller]),
@@ -144,7 +144,7 @@ const ROLES_TABLE: TableDef = {
 
 // que-ve-cada-rol ---------------------------------------------------------------------------
 
-/** The six project actions the interface asks `can()` about, in the order the page shows them. */
+/** The six project actions `can()` knows, in the order the page shows them. */
 export const ACTION_LABELS: Readonly<Record<ProjectAction, string>> = {
   viewProject: 'Ver el proyecto, sus datasets, imágenes y anotaciones',
   annotate: 'Crear anotaciones (editar o borrar: solo su autor)',
@@ -162,6 +162,25 @@ export const ACTION_ORDER: readonly ProjectAction[] = [
   'manageMembers',
   'exportDataset',
 ];
+
+/**
+ * The control each action drives in the interface today. `can()` knows six actions but the SPA
+ * only calls it for the three marked `exists`; a test reads the sources of the SPA and compares
+ * them, so a new `can('...')` call fails it until this list says which control it hides.
+ */
+export const UI_CONTROLS: Readonly<Record<ProjectAction, { exists: boolean; text: string }>> = {
+  viewProject: { exists: false, text: 'Ninguno: la API filtra la lista' },
+  annotate: { exists: false, text: 'Ninguno: no hay editor' },
+  manageCatalog: { exists: true, text: 'Botón «Nuevo dataset» (clases: sin pantalla)' },
+  uploadImages: { exists: true, text: 'Botón «Subir imágenes»' },
+  manageMembers: { exists: true, text: 'Botón «Miembros»' },
+  exportDataset: { exists: false, text: 'Ninguno: no hay pantalla de exportar' },
+};
+
+/** Actions of `can()` that have a control in the interface today. */
+export const ACTIONS_WITH_CONTROL: readonly ProjectAction[] = ACTION_ORDER.filter(
+  (action) => UI_CONTROLS[action].exists,
+);
 
 interface RoleColumn {
   key: string;
@@ -207,22 +226,24 @@ export const ROLE_COLUMNS: readonly RoleColumn[] = [
 function visibilityTable(): TableDef {
   const emptyFooter: Record<string, Cell> = {
     accion: 'Solo oculta controles: la API decide en cada pedido.',
+    control: '',
   };
   for (const column of ROLE_COLUMNS) emptyFooter[column.key] = '';
   return {
     id: 'que-ve-cada-rol',
-    title: 'Qué muestra la interfaz a cada rol',
-    caption:
-      'La tabla se calcula llamando a can(), la función que la interfaz usa para mostrar u ocultar controles.',
+    title: 'Qué regla aplica la interfaz a cada rol',
+    caption: `La tabla se calcula llamando a can(), la regla que la interfaz usa para mostrar u ocultar controles. Hoy solo ${String(ACTIONS_WITH_CONTROL.length)} de las ${String(ACTION_ORDER.length)} acciones tienen un control en la interfaz: la última columna dice cuál.`,
     columns: [
       { key: 'accion', label: 'Acción' },
       ...ROLE_COLUMNS.map(({ key, label, align }) => ({ key, label, align })),
+      { key: 'control', label: 'Control en la interfaz hoy' },
     ],
     rows: ACTION_ORDER.map((action) => {
       const row: Record<string, Cell> = { accion: ACTION_LABELS[action] };
       for (const column of ROLE_COLUMNS) {
         row[column.key] = { yes: can(action, column.context) };
       }
+      row['control'] = UI_CONTROLS[action].text;
       return row;
     }),
     footer: emptyFooter,

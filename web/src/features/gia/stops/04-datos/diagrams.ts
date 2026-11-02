@@ -3,8 +3,12 @@ import { FACTS } from '../../model/facts';
 import { STATUS_META } from '../../model/status';
 import type { DiagramDef } from '../../model/types';
 
-/** Words the target model prints next to what does not exist yet (ER diagrams have no dashes). */
-const PLANNED = STATUS_META.planned.label.toUpperCase();
+/**
+ * Words the target model prints next to what does not exist yet (ER diagrams have no dashes).
+ * The extensions are not "planned": both statements leave them out of scope and the architecture
+ * only keeps a place for them (section 5.4), so they carry the undecided glyph and this wording.
+ */
+const EXTENSION = 'extensión prevista';
 const UNDECIDED = STATUS_META.unknown.label.toUpperCase();
 
 /**
@@ -91,7 +95,8 @@ const ER_IMPLEMENTADO = `erDiagram
 
 /**
  * The ADR-07 model is migrated whole, so the target is the same eight tables plus extensions that
- * have no schedule. Planned items carry the colour of the status, its glyph and the word.
+ * are out of scope and have no schedule. They carry the colour of the undecided status, its glyph
+ * and the words "extensión prevista"; none is called planned.
  */
 const ER_OBJETIVO = `erDiagram
   USERS ||--o{ PROJECT_MEMBERS : "membresía"
@@ -104,14 +109,14 @@ const ER_OBJETIVO = `erDiagram
   LABEL_CLASSES ||--o{ ANNOTATIONS : "clasifica"
   USERS ||--o{ ANNOTATIONS : "es autor"
   USERS ||--o{ IMPORTS : "importa"
-  ANNOTATIONS ||--o{ ANNOTATION_REVISIONS : "historial: ${PLANNED}"
-  IMAGES ||--o| IMAGE_REVIEW_STATE : "revisión: ${PLANNED}"
+  ANNOTATIONS ||--o{ ANNOTATION_REVISIONS : "historial: ${EXTENSION}"
+  IMAGES ||--o| IMAGE_REVIEW_STATE : "revisión: ${EXTENSION}"
   USERS {
     bigint id PK
     varchar username UK
     varchar role "admin o user"
     bool is_system
-    int session_version "${g('planned')} ${PLANNED}: ADR-16 abierto"
+    int session_version "${g('unknown')} ${UNDECIDED}: ADR-16 abierto"
   }
   PROJECTS {
     bigint id PK
@@ -138,7 +143,7 @@ const ER_OBJETIVO = `erDiagram
     bigint dataset_id FK
     varchar storage_key UK
     varchar kind
-    varchar format "${g('planned')} dicom: ${PLANNED}"
+    varchar format "valor dicom: ${EXTENSION}"
   }
   ANNOTATIONS {
     bigint id PK
@@ -147,7 +152,7 @@ const ER_OBJETIVO = `erDiagram
     bigint class_id FK
     bigint author_id FK
     jsonb geometry_json
-    varchar source "${g('planned')} model: ${PLANNED}"
+    varchar source "valor model: ${EXTENSION}"
     timestamptz deleted_at
   }
   IMPORTS {
@@ -155,11 +160,11 @@ const ER_OBJETIVO = `erDiagram
     bigint dataset_id FK
     bigint imported_by_id FK
   }
-  ANNOTATION_REVISIONS["${g('planned')} annotation_revisions · ${PLANNED}"]${c('planned')} {
-    bigint id PK "no migrada"
+  ANNOTATION_REVISIONS["${g('unknown')} annotation_revisions · extensión"]${c('unknown')} {
+    bigint id PK "no migrada, fuera de alcance"
     bigint annotation_id FK "${g('unknown')} columnas ${UNDECIDED}"
   }
-  IMAGE_REVIEW_STATE["${g('planned')} image_review_state · ${PLANNED}"]${c('planned')} {
+  IMAGE_REVIEW_STATE["${g('unknown')} image_review_state · extensión"]${c('unknown')} {
     bigint image_id PK, FK "${g('unknown')} columnas ${UNDECIDED}"
   }`;
 
@@ -189,13 +194,22 @@ export const DIAGRAMS_DATOS: readonly DiagramDef[] = [
     kind: 'er',
     title: 'Modelo objetivo',
     summary:
-      'Diagrama entidad-relación del modelo objetivo: las mismas tablas de hoy más dos tablas de extensión, un atributo de sesión y dos valores nuevos, todos marcados como planificados.',
+      'Diagrama entidad-relación del modelo con las extensiones previstas: las mismas tablas de hoy más dos tablas de extensión y dos valores nuevos, fuera del alcance de las dos PPS, y un atributo de sesión sin decidir. Ninguna se construye en esta etapa.',
     caption:
-      'Extensiones, sin cronograma. Los nombres de las dos tablas nuevas son provisionales y sus columnas están sin decidir.',
+      'Extensiones previstas en la arquitectura, fuera de alcance y sin cronograma: ninguna se construye en esta etapa. Los nombres de las dos tablas nuevas son provisionales y sus columnas están sin decidir.',
     source: ER_OBJETIVO,
     usesStatus: true,
     sources: [
-      { kind: 'doc', ref: 'docs/arquitectura/03-bloques-y-ejecucion.md' },
+      {
+        kind: 'doc',
+        ref: 'docs/arquitectura/03-bloques-y-ejecucion.md:146-158',
+        note: 'puntos de extensión',
+      },
+      {
+        kind: 'doc',
+        ref: 'docs/arquitectura/01-introduccion-y-restricciones.md:28',
+        note: 'fuera de alcance',
+      },
       { kind: 'adr', ref: 'docs/adr/0007-modelo-de-datos-y-autoria.md' },
       { kind: 'adr', ref: 'docs/adr/0016-autorizacion-por-proyecto-y-sesion.md' },
     ],

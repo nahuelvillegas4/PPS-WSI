@@ -12,9 +12,16 @@ import { FACTS } from '../../model/facts';
 import type { Cell, TableDef } from '../../model/types';
 import { content } from './index';
 import { ACCESS_GROUPS, groupOutcome, matrixRows, outcomeFor, type Outcome } from './matrix';
-import { ACTION_ORDER, AREA_ORDER, CALLER_COLUMNS, ROLE_COLUMNS } from './tables';
+import {
+  ACTION_ORDER,
+  ACTIONS_WITH_CONTROL,
+  AREA_ORDER,
+  CALLER_COLUMNS,
+  ROLE_COLUMNS,
+  UI_CONTROLS,
+} from './tables';
 import { readFixture } from './fixture.testing';
-import { repoPathExists } from '../../drift/repoFiles.testing';
+import { findRepoText, readRepoFile, repoPathExists } from '../../drift/repoFiles.testing';
 
 function textOf(cell: Cell | undefined): string {
   if (typeof cell === 'string') return cell;
@@ -136,6 +143,24 @@ describe('the access matrix', () => {
     expect(counts.map(Number).reduce((sum, count) => sum + count, 0)).toBe(FACTS.operations);
   });
 
+  it('lists the projects a session can see, and says the service status is not reachable through the gateway', async () => {
+    const session = ACCESS_GROUPS.find((group) => group.id === 'session');
+    expect(session?.label).toContain('listar los proyectos visibles');
+    expect(session?.label).not.toContain('propios');
+    const projects = await readRepoFile(
+      'api/src/Pps.Api/Controllers/Catalog/ProjectsController.cs',
+    );
+    expect(projects).toContain('todos para el administrador global');
+
+    const caption = table('matriz-permisos').caption ?? '';
+    expect(caption).toContain('el estado del servicio no pasa por la pasarela');
+    expect(caption).toContain('solo se alcanza dentro de Compose');
+    // The gateway sends every path outside /api/ and /tiles/ to the SPA, so /health/* never reaches the API.
+    const nginx = await readRepoFile('deploy/gateway/nginx.conf');
+    expect(nginx).not.toContain('health');
+    expect(nginx).toContain('try_files $uri /index.html;');
+  });
+
   it('shows allowed, author-only and denied cells with the cell kinds the table renders', () => {
     const matrix = table('matriz-permisos');
     const view = matrix.rows.find((row) => textOf(row['requisito']).startsWith('project.view'));
@@ -235,9 +260,78 @@ describe('what the interface shows each role', () => {
     const footer = table('que-ve-cada-rol').footer;
     expect(textOf(footer?.['accion'])).toMatch(/solo oculta/i);
   });
+
+  it('names the rule the interface applies, not the controls it has', () => {
+    const visibility = table('que-ve-cada-rol');
+    expect(visibility.title).toBe('Qué regla aplica la interfaz a cada rol');
+    expect(visibility.caption).toContain('Hoy solo 3 de las 6 acciones tienen un control');
+    const callout = content.section.tabs
+      .find((tab) => tab.id === 'interfaz')
+      ?.blocks.flatMap((block) => (block.kind === 'callout' ? [block] : []))[0];
+    expect(callout?.text).toContain('la regla que aplica la interfaz');
+    expect(callout?.text).toContain('no los controles que existen');
+    expect(callout?.text).toContain('Hoy solo 3 de las 6 acciones tienen un control');
+    expect(callout?.text).toContain('el servidor vuelve a decidir en cada pedido');
+  });
+
+  it('adds a column with the control each action has today, and says "ninguno" for the other three', () => {
+    const visibility = table('que-ve-cada-rol');
+    expect(visibility.columns.at(-1)).toEqual({
+      key: 'control',
+      label: 'Control en la interfaz hoy',
+    });
+    const controls: Record<string, string> = {};
+    visibility.rows.forEach((row, index) => {
+      controls[ACTION_ORDER[index] ?? '?'] = textOf(row['control']);
+    });
+    expect(controls).toEqual({
+      viewProject: 'Ninguno: la API filtra la lista',
+      annotate: 'Ninguno: no hay editor',
+      manageCatalog: 'Botón «Nuevo dataset» (clases: sin pantalla)',
+      uploadImages: 'Botón «Subir imágenes»',
+      manageMembers: 'Botón «Miembros»',
+      exportDataset: 'Ninguno: no hay pantalla de exportar',
+    });
+    for (const action of ACTION_ORDER) {
+      expect(UI_CONTROLS[action].exists, action).toBe(!/^Ninguno/.test(UI_CONTROLS[action].text));
+    }
+    expect(ACTIONS_WITH_CONTROL).toEqual(['manageCatalog', 'uploadImages', 'manageMembers']);
+  });
+
+  it('claims a control only for the actions the SPA asks can() about: the tripwire of the column', async () => {
+    const files = await findRepoText({
+      in: ['web/src/**/*.ts', 'web/src/**/*.tsx'],
+      except: [
+        'web/src/features/gia/**',
+        'web/src/features/access/**',
+        'web/src/**/*.test.ts',
+        'web/src/**/*.test.tsx',
+      ],
+      pattern: "\\bcan\\(\\s*'",
+    });
+    const asked = new Set<string>();
+    for (const file of files) {
+      const source = await readRepoFile(file);
+      for (const match of source.matchAll(/\bcan\(\s*'(\w+)'/g)) asked.add(match[1] ?? '');
+    }
+    expect(
+      [...asked].sort(),
+      'La interfaz llama a can() con otra acción: actualizá UI_CONTROLS en stops/05-permisos/tables.ts y el texto que cuenta los controles',
+    ).toEqual([...ACTIONS_WITH_CONTROL].sort());
+    expect(files).toEqual(['web/src/features/catalog/CatalogPage.tsx']);
+  });
 });
 
 describe('the API in numbers', () => {
+  it('counts the pending operations against the contract or an ADR, not only the contract', () => {
+    const api = content.section.tabs.find((tab) => tab.id === 'api');
+    const stats = api?.blocks.flatMap((block) => (block.kind === 'stats' ? block.items : []));
+    const pending = stats?.find((item) => item.status === 'partial');
+    expect(pending?.label).toBe('con pendientes frente al contrato o a un ADR');
+    expect(pending?.value).toBe(String(OPERATIONS.filter((item) => item.pending).length));
+    expect(stats?.map((item) => item.label).join(' ')).not.toContain('diferencias');
+  });
+
   it('counts operations, those with a screen and the ones that owe something, by area', () => {
     const areas = table('api-areas');
     expect(areas.rows).toHaveLength(AREA_ORDER.length);

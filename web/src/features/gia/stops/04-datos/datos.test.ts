@@ -9,7 +9,14 @@ import { lintDiagram } from '../../engine/diagramLint';
 import { FACTS } from '../../model/facts';
 import type { DiagramDef, TableDef } from '../../model/types';
 import { content } from './index';
-import { IMPLEMENTED_TABLES, INTEGRITY_RULES, MIGRATIONS, NO_TEST, PLANNED_TABLES } from './tables';
+import {
+  EXTENSION_STATE,
+  EXTENSION_TABLES,
+  IMPLEMENTED_TABLES,
+  INTEGRITY_RULES,
+  MIGRATIONS,
+  NO_TEST,
+} from './tables';
 
 const SNAPSHOT_PATH =
   'api/src/Pps.Infrastructure/Persistence/Migrations/AppDbContextModelSnapshot.cs';
@@ -76,13 +83,15 @@ describe('the tables against the model snapshot', () => {
     expect([...mapped].sort()).toEqual(IMPLEMENTED_TABLES.map((data) => data.name).sort());
   });
 
-  it('shows the implemented tables as done and the extensions as planned in the table', () => {
+  it('shows the implemented tables as done and the extensions as out-of-scope extensions, never as planned', () => {
     const rows = table('tablas').rows;
-    expect(rows).toHaveLength(IMPLEMENTED_TABLES.length + PLANNED_TABLES.length);
+    expect(rows).toHaveLength(IMPLEMENTED_TABLES.length + EXTENSION_TABLES.length);
     expect(rows.map((row) => row['estado'])).toEqual([
       ...IMPLEMENTED_TABLES.map(() => ({ status: 'done' })),
-      ...PLANNED_TABLES.map(() => ({ status: 'planned' })),
+      ...EXTENSION_TABLES.map(() => ({ status: 'unknown', text: EXTENSION_STATE })),
     ]);
+    expect(EXTENSION_STATE).toBe('Extensión prevista, fuera de alcance');
+    expect(JSON.stringify(rows)).not.toMatch(/planned|PLANIFICADO/);
   });
 
   it('keeps the planned tables and columns out of the code: the tripwire for the extensions', async () => {
@@ -92,7 +101,7 @@ describe('the tables against the model snapshot', () => {
         pattern:
           'annotation_revisions|AnnotationRevision|image_review_state|ImageReviewState|session_version|SessionVersion|dicom',
       }),
-      'Se construyó algo que la guía marca como planificado en la parada de datos: actualizá stops/04-datos y el modelo objetivo',
+      'Se construyó algo que la guía marca como extensión en la parada de datos: actualizá stops/04-datos y el modelo objetivo',
     ).toEqual([]);
   });
 });
@@ -132,25 +141,60 @@ describe('the implemented ER diagram', () => {
 });
 
 describe('the target ER diagram', () => {
-  it('keeps the eight entities and adds the two planned ones, painted as planned', () => {
+  it('keeps the eight entities and adds the two extensions, painted as undecided and never as planned', () => {
     const source = diagram('er-objetivo').source;
     expect(entitiesOf(source).sort()).toEqual(
       [
         ...IMPLEMENTED_TABLES.map((data) => data.name.toUpperCase()),
-        ...PLANNED_TABLES.map((data) => data.name.toUpperCase()),
+        ...EXTENSION_TABLES.map((data) => data.name.toUpperCase()),
       ].sort(),
     );
-    expect(source.match(/:::planned/g)).toHaveLength(PLANNED_TABLES.length);
-    expect(source).toContain('PLANIFICADO');
+    expect(source.match(/:::unknown/g)).toHaveLength(EXTENSION_TABLES.length);
+    expect(source).not.toContain(':::planned');
+    expect(source).not.toContain('○');
+    expect(source).not.toContain('PLANIFICADO');
+    expect(source).toContain('extensión');
     expect(source).toContain('SIN DECIDIR');
     expect(diagram('er-objetivo').usesStatus).toBe(true);
   });
 
-  it('marks the planned column and values with the status word and glyph', () => {
+  it('says extension for the new values and the new tables, and undecided for the session column', () => {
     const source = diagram('er-objetivo').source;
-    expect(source).toMatch(/int session_version "○ PLANIFICADO/);
-    expect(source).toMatch(/varchar format "○ dicom: PLANIFICADO"/);
-    expect(source).toMatch(/varchar source "○ model: PLANIFICADO"/);
+    expect(source).toContain('int session_version "? SIN DECIDIR: ADR-16 abierto"');
+    expect(source).toContain('varchar format "valor dicom: extensión prevista"');
+    expect(source).toContain('varchar source "valor model: extensión prevista"');
+    expect(source).toContain('ANNOTATION_REVISIONS : "historial: extensión prevista"');
+    expect(source).toContain('IMAGE_REVIEW_STATE : "revisión: extensión prevista"');
+    expect(source).toContain(
+      'ANNOTATION_REVISIONS["? annotation_revisions · extensión"]:::unknown',
+    );
+    expect(source).toContain('IMAGE_REVIEW_STATE["? image_review_state · extensión"]:::unknown');
+  });
+
+  it('presents the extensions as out of scope in the section, the list, the summary and the caption', () => {
+    const objetivo = content.section.tabs.find((tab) => tab.id === 'objetivo');
+    const text = JSON.stringify(objetivo);
+    expect(text).toContain('fuera de alcance');
+    expect(text).toContain('ninguna se construye en esta etapa');
+    expect(text).not.toMatch(/PLANIFICADO/);
+    const er = diagram('er-objetivo');
+    expect(er.summary).toContain('fuera del alcance de las dos PPS');
+    expect(er.summary).toContain('Ninguna se construye en esta etapa');
+    expect(er.caption).toContain('fuera de alcance');
+    expect(table('tablas').caption).toContain('fuera de alcance');
+  });
+
+  it('cites the architecture where the extensions are listed, and both statements leave them out', async () => {
+    const extension = await readRepoFile('docs/arquitectura/03-bloques-y-ejecucion.md');
+    expect(extension).toContain('### 5.4 Puntos de extensión');
+    expect(extension).toContain('| Historial completo de ediciones |');
+    expect(extension).toContain('| DICOM WSI |');
+    expect(extension).toContain('source = model');
+    const scope = await readRepoFile('docs/arquitectura/01-introduccion-y-restricciones.md');
+    expect(scope).toContain('Quedan fuera del alcance obligatorio');
+    expect(scope).toContain('DICOM WSI');
+    const adr = await readRepoFile('docs/adr/0016-autorizacion-por-proyecto-y-sesion.md');
+    expect(adr).toContain('Columna `session_version`');
   });
 });
 

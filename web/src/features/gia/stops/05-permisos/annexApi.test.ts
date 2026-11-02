@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { content } from '../../anexos/a1-api';
-import { MINIMUM_LABELS, OPERATIONS } from '../../data/operations';
+import { GLOBAL_ADMIN_OPERATIONS, MINIMUM_LABELS, OPERATIONS } from '../../data/operations';
 import { repoPathExists } from '../../drift/repoFiles.testing';
 import { FACTS } from '../../model/facts';
 import type { Cell } from '../../model/types';
@@ -97,6 +97,19 @@ describe('annex A1: the API operations', () => {
     expect(pending[0]).toBe('—');
     const exportRow = OPERATIONS.findIndex((operation) => operation.id === 'exportDataset');
     expect(pending[exportRow]).toBe(OPERATIONS[exportRow]?.pending);
+  });
+
+  it('says who decides the operations that ask for the global admin: the role in the cookie', () => {
+    const callout = content.section.tabs
+      .flatMap((tab) => tab.blocks)
+      .find((block) => block.kind === 'callout');
+    const text = callout && 'text' in callout ? callout.text : '';
+    expect(OPERATIONS.filter((operation) => operation.minimum === 'global-admin')).toHaveLength(
+      GLOBAL_ADMIN_OPERATIONS,
+    );
+    expect(text).toContain(
+      `Las ${String(GLOBAL_ADMIN_OPERATIONS)} operaciones que piden administración global las decide el rol que viaja en la cookie`,
+    );
   });
 
   it('cites contract and code files that exist, and a short headline with 2 to 4 notes', () => {

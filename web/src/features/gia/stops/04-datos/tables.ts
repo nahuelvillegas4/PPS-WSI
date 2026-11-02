@@ -71,8 +71,11 @@ export const IMPLEMENTED_TABLES: readonly TableData[] = [
   },
 ];
 
-/** Extensions named in the architecture document; none has a schedule and no column is decided. */
-export const PLANNED_TABLES: readonly TableData[] = [
+/**
+ * Extensions named in the architecture document (section 5.4): out of scope of both statements,
+ * with no schedule and no decided column. They are not "planned": the page calls them extensions.
+ */
+export const EXTENSION_TABLES: readonly TableData[] = [
   {
     name: 'annotation_revisions',
     purpose: 'Historial de cambios de cada anotación, de solo inserción.',
@@ -87,13 +90,16 @@ export const PLANNED_TABLES: readonly TableData[] = [
   },
 ];
 
-function tableRow(data: TableData, status: 'done' | 'planned'): Record<string, Cell> {
+/** What the state column says about an extension, in place of the default status word. */
+export const EXTENSION_STATE = 'Extensión prevista, fuera de alcance';
+
+function tableRow(data: TableData, state: Cell): Record<string, Cell> {
   return {
     tabla: { mono: data.name },
     proposito: data.purpose,
     claves: data.keys,
     invariante: data.invariant,
-    estado: { status },
+    estado: state,
   };
 }
 
@@ -108,17 +114,22 @@ const TABLAS_COLUMNS: readonly ColumnDef[] = [
 const tablas: TableDef = {
   id: 'tablas',
   title: 'Las tablas',
-  caption: `${FACTS.tables} tablas implementadas y ${PLANNED_TABLES.length} de extensión sin cronograma. Entre paréntesis, la respuesta que da la API cuando la regla se rompe.`,
+  caption: `${FACTS.tables} tablas implementadas y ${EXTENSION_TABLES.length} de extensión, fuera de alcance y sin cronograma. Entre paréntesis, la respuesta que da la API cuando la regla se rompe.`,
   columns: TABLAS_COLUMNS,
   rows: [
-    ...IMPLEMENTED_TABLES.map((data) => tableRow(data, 'done')),
-    ...PLANNED_TABLES.map((data) => tableRow(data, 'planned')),
+    ...IMPLEMENTED_TABLES.map((data) => tableRow(data, { status: 'done' })),
+    ...EXTENSION_TABLES.map((data) => tableRow(data, { status: 'unknown', text: EXTENSION_STATE })),
   ],
   sources: [
     { kind: 'code', ref: SNAPSHOT_PATH },
     { kind: 'code', ref: 'api/src/Pps.Infrastructure/Persistence/AppDbContext.cs' },
     { kind: 'adr', ref: 'docs/adr/0007-modelo-de-datos-y-autoria.md' },
     { kind: 'doc', ref: 'docs/arquitectura/03-bloques-y-ejecucion.md' },
+    {
+      kind: 'doc',
+      ref: 'docs/arquitectura/03-bloques-y-ejecucion.md:146-158',
+      note: 'puntos de extensión',
+    },
   ],
 };
 

@@ -33,16 +33,16 @@ export const content: StopContent = {
           {
             kind: 'callout',
             tone: 'info',
-            text: 'El modelo que fija el ADR-07 ya está migrado completo. Lo que falta son extensiones que la arquitectura nombra y que no tienen cronograma.',
+            text: 'El modelo que fija el ADR-07 ya está migrado completo. Lo que falta son extensiones que la arquitectura (sección 5.4) trata como fuera de alcance, con un lugar donde enchufarse; ninguna se construye en esta etapa.',
           },
           { kind: 'diagram', id: 'er-objetivo' },
           {
             kind: 'list',
             items: [
-              'annotation_revisions: historial de cambios de cada anotación. PLANIFICADO, sin cronograma; las columnas están sin decidir.',
-              'Estado de revisión por imagen, para una cola de revisión. PLANIFICADO, sin cronograma; la tabla y las columnas están sin decidir.',
-              'users.session_version: el ADR-16 propone derivar el sello de sesión del hash de la contraseña o agregar esta columna; se decide al implementar.',
-              'Valores nuevos que no piden migración: formato dicom en las imágenes y origen model en las anotaciones. PLANIFICADO.',
+              'annotation_revisions: historial de cambios de cada anotación. Extensión prevista, fuera de alcance y sin cronograma; las columnas están sin decidir.',
+              'Estado de revisión por imagen, para una cola de revisión. Extensión prevista, fuera de alcance y sin cronograma; la tabla y las columnas están sin decidir.',
+              'users.session_version: SIN DECIDIR. El ADR-16 propone derivar el sello de sesión del hash de la contraseña o agregar esta columna; se decide al implementar.',
+              'Valores nuevos que no piden migración: formato dicom en las imágenes y origen model en las anotaciones. Extensión prevista, fuera de alcance.',
               'El conjunto de anotaciones por usuario ya existe como consulta (filtro de autores); no hay tabla.',
             ],
           },
@@ -52,7 +52,7 @@ export const content: StopContent = {
     notes: [
       'El modelo del ADR-07 ya está migrado entero.',
       `Son ${FACTS.tables} tablas y ${FACTS.migrations} migraciones, del 17/10 al 01/11; la base garantiza que la clase pertenece al dataset de la imagen.`,
-      'El objetivo agrega solo extensiones sin cronograma: historial de revisiones y estado de revisión por imagen.',
+      'El objetivo agrega solo extensiones fuera de alcance y sin cronograma: historial de revisiones y estado de revisión por imagen; ninguna se construye en esta etapa.',
       'Los nombres únicos de dataset y de clase los valida la API, no la base.',
     ],
     detail: [

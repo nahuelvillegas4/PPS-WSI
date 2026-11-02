@@ -77,6 +77,33 @@ describe('compose.yaml against the containers stop', () => {
     expect(publishing).not.toContain('tiles');
   });
 
+  it('still publishes the API and the database on every interface, as the page says', () => {
+    for (const name of ['api', 'db']) {
+      const lines = compose.find((service) => service.name === name)?.lines ?? [];
+      const port = lines.find((line) => /^\s*-\s+"\$\{[A-Z_]+:-\d+\}:\d+"\s*$/.test(line));
+      expect(port, `${name} publishes a port`).toBeDefined();
+      expect(
+        port,
+        'El compose ya limita la publicación al equipo local: actualizá la parada de arquitectura',
+      ).not.toContain('127.0.0.1');
+    }
+    const texts = CONTAINERS.filter((container) => container.published).map(
+      (container) => container.publishedText,
+    );
+    expect(texts.filter((text) => text.includes('todas las interfaces'))).toHaveLength(2);
+  });
+
+  it('draws the extra publications from the host, not from the browser, and never says dev-only', () => {
+    const source = containersDiagram?.source ?? '';
+    expect(source).not.toMatch(/\bnav -\.->/);
+    expect(source).toMatch(/\bhost -\.->\|"[^"]*"\| api\b/);
+    expect(source).toMatch(/\bhost -\.->\|"[^"]*"\| db\b/);
+    expect(source).not.toContain('solo en desarrollo');
+    expect(source).not.toContain('único punto de entrada');
+    expect(JSON.stringify(containersTable)).not.toContain('solo en desarrollo');
+    expect(containersDiagram?.summary).toContain('no existe un compose del servidor');
+  });
+
   it('keeps the technology shown in sync with the images the project builds', async () => {
     const pins = [
       {

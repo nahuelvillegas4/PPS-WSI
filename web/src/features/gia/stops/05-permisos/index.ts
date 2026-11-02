@@ -2,7 +2,7 @@ import { OPERATIONS } from '../../data/operations';
 import { FACTS } from '../../model/facts';
 import type { StopContent } from '../../model/types';
 import { DIAGRAMS_PERMISOS } from './diagrams';
-import { TABLES_PERMISOS } from './tables';
+import { ACTION_ORDER, ACTIONS_WITH_CONTROL, TABLES_PERMISOS } from './tables';
 
 /** Permission keys the operations ask for; six today, counted from the rows. */
 const PERMISSION_COUNT = new Set(
@@ -42,7 +42,7 @@ export const content: StopContent = {
             kind: 'callout',
             tone: 'info',
             title: 'La interfaz solo oculta',
-            text: 'Esta tabla muestra qué controles ve cada rol en la interfaz. La restricción es de interfaz: el servidor vuelve a decidir en cada pedido, aunque alguien llegue a la dirección o llame a la API directamente.',
+            text: `Esta tabla muestra la regla que aplica la interfaz para mostrar u ocultar controles, no los controles que existen. Hoy solo ${String(ACTIONS_WITH_CONTROL.length)} de las ${String(ACTION_ORDER.length)} acciones tienen un control: nuevo dataset, subir imágenes y el botón Miembros. La restricción es de interfaz: el servidor vuelve a decidir en cada pedido, aunque alguien llegue a la dirección o llame a la API directamente.`,
           },
           { kind: 'table', id: 'que-ve-cada-rol' },
         ],
@@ -59,7 +59,7 @@ export const content: StopContent = {
               { value: String(PERMISSION_COUNT), label: 'permisos de proyecto' },
               {
                 value: String(WITH_PENDING),
-                label: 'con diferencias o pendientes frente al contrato',
+                label: 'con pendientes frente al contrato o a un ADR',
                 status: 'partial',
               },
               {

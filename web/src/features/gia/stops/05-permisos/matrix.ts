@@ -40,7 +40,7 @@ export const ACCESS_GROUPS: readonly AccessGroup[] = [
   },
   {
     id: 'session',
-    label: 'Cualquier sesión: salir, ver la sesión y listar los proyectos propios',
+    label: 'Cualquier sesión: salir, ver la sesión y listar los proyectos visibles',
     select: (operation) => operation.minimum === 'any-authenticated',
   },
   {

@@ -119,6 +119,13 @@ describe('stop 3: diagrams', () => {
     },
   );
 
+  it.each(sequences.map((diagram) => [diagram.id, diagram] as const))(
+    '%s has no semicolon in its text, which Mermaid reads as the end of a statement',
+    (_id, diagram) => {
+      expect(diagram.source.split('\n').filter((line) => line.includes(';'))).toEqual([]);
+    },
+  );
+
   it('marks every partial or planned part with its glyph and its word', () => {
     const source = (id: string) => diagrams.find((diagram) => diagram.id === id)?.source ?? '';
     expect(source('login')).toContain('◐ PARCIAL');

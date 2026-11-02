@@ -1,5 +1,6 @@
 import {
   CONTRACT_VERSION,
+  GLOBAL_ADMIN_OPERATIONS,
   INTERNAL_PATH,
   MINIMUM_LABELS,
   OPERATIONS,
@@ -97,7 +98,7 @@ export const content: StopContent = {
             kind: 'callout',
             tone: 'info',
             title: 'Cómo leer la tabla',
-            text: `Fuente única: la matriz de autorización del contrato, versión ${CONTRACT_VERSION}. Mínimo es el rol más bajo que puede llamar a la operación. Ámbito es el recurso del que se deduce el proyecto. No miembro es la respuesta que recibe quien no tiene rol en el proyecto. Marcas: solo autor significa que, además del rol, hay que ser quien creó la anotación; permiso aplicado a mano, que el controlador consulta el permiso por su cuenta (listar proyectos y la consulta de acceso de la pasarela).`,
+            text: `Fuente única: la matriz de autorización del contrato, versión ${CONTRACT_VERSION}. Mínimo es el rol más bajo que puede llamar a la operación. Ámbito es el recurso del que se deduce el proyecto. No miembro es la respuesta que recibe quien no tiene rol en el proyecto. Marcas: solo autor significa que, además del rol, hay que ser quien creó la anotación; permiso aplicado a mano, que el controlador consulta el permiso por su cuenta (listar proyectos y la consulta de acceso de la pasarela). Las ${String(GLOBAL_ADMIN_OPERATIONS)} operaciones que piden administración global las decide el rol que viaja en la cookie, sin consultar la política de proyecto.`,
           },
           { kind: 'table', id: 'api-40' },
         ],

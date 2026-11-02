@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   CALLERS,
   CONTRACT_VERSION,
+  GLOBAL_ADMIN_OPERATIONS,
   INTERNAL_PATH,
   MINIMUM_ORDER,
   OPERATIONS,
   operationLabel,
   pendingStatus,
+  PROJECT_PERMISSION_OPERATIONS,
   reachByRole,
 } from '../../data/operations';
 import { findRepoText, matchRepoGlob, readRepoFile } from '../../drift/repoFiles.testing';
@@ -254,6 +256,38 @@ describe('pending notes', () => {
       'payload-too-large|insufficient-storage',
     );
     await stillMissing('storage-key-in-use', 'api/src/**', 'storage-key-in-use');
+  });
+
+  it('credit two of them to an ADR and not to the contract, and write the tile cache as conditional', async () => {
+    const contract = await readRepoFile(API_OPENAPI_PATH);
+    expect(contract).not.toMatch(/Clear-Site-Data/i);
+    expect(contract).not.toMatch(/cach[eé]/i);
+    const adr = await readRepoFile('docs/adr/0016-autorizacion-por-proyecto-y-sesion.md');
+    expect(adr).toContain('el cierre de sesión responde `Clear-Site-Data: "cache"`');
+    expect(adr).toContain('Si la puerta falla, se agrega una caché de 5 s');
+    const quality = await readRepoFile('docs/arquitectura/05-calidad-y-riesgos.md');
+    expect(quality).toContain(
+      '| Autorización por tesela sin caché | Simplicidad y seguridad | Si QS-4 no se cumple |',
+    );
+
+    const tile = OPERATIONS.find((operation) => operation.id === 'authorizeTileRequest');
+    expect(tile?.pending).toContain('solo si no se cumple, agregar una caché de 5 s');
+    expect(tile?.pending).not.toContain('caché de 5 s y medición');
+    const logout = OPERATIONS.find((operation) => operation.id === 'logout');
+    expect(logout?.pending).toContain('(ADR-16, propuesto)');
+  });
+
+  it('writes yolo as conditional on spare time and the partial file on upload', () => {
+    const exportRow = OPERATIONS.find((operation) => operation.id === 'exportDataset');
+    expect(exportRow?.pending).toContain('el ADR-10 lo deja condicional, solo si sobra tiempo');
+    const upload = OPERATIONS.find((operation) => operation.id === 'uploadImages');
+    expect(upload?.pending).toContain('puede quedar uno parcial en el volumen');
+  });
+
+  it('counts how each operation is decided from the rows: 23 by the policy, 10 by the cookie role', () => {
+    expect(PROJECT_PERMISSION_OPERATIONS).toBe(23);
+    expect(GLOBAL_ADMIN_OPERATIONS).toBe(10);
+    expect(OPERATIONS.filter((operation) => operation.manualGate)).toHaveLength(2);
   });
 
   it('still match the code they describe: yolo, the overwrite on upload and the readiness probe', async () => {

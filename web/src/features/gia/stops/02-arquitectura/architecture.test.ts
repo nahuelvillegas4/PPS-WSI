@@ -5,6 +5,11 @@ import {
   matchRepoGlob,
   readRepoFile,
 } from '../../drift/repoFiles.testing';
+import {
+  GLOBAL_ADMIN_OPERATIONS,
+  OPERATIONS,
+  PROJECT_PERMISSION_OPERATIONS,
+} from '../../data/operations';
 import { FACTS } from '../../model/facts';
 import { FEATURES, type FeatureId } from '../../model/features';
 import { STATUS_META } from '../../model/status';
@@ -114,7 +119,7 @@ describe('stop 2: diagrams', () => {
     const spa = diagram('spa-interna')?.source ?? '';
     expect(spa).toContain(`p_annotations["${glyph('editor')} annotations`);
     const context = diagram('contexto')?.source ?? '';
-    expect(context).toContain(`yolo["${glyph('yolo')} YOLO"]`);
+    expect(context).toContain(`yolo["${glyph('yolo')} YOLO<br/>condicional, ADR-10"]`);
     expect(context).toContain('srv["? Servidor');
   });
 });
@@ -160,6 +165,45 @@ describe('stop 2: the API inside', () => {
     const guard = await readRepoFile('api/src/Pps.Api/Common/Access/AccessGuardFilter.cs');
     expect(guard).toContain('!= 1');
     expect(guard).toContain('ForbiddenProblemException');
+  });
+
+  it('counts how each operation is decided: 23 by the policy, 10 by the role in the cookie, 4 and 3 by hand', async () => {
+    let requirePermission = 0;
+    let authenticatedOnly = 0;
+    for (const path of controllers) {
+      const source = await readRepoFile(path);
+      requirePermission += (source.match(/\[RequirePermission\(/g) ?? []).length;
+      authenticatedOnly += (source.match(/\[AuthenticatedOnly\]/g) ?? []).length;
+    }
+    expect(requirePermission).toBe(PROJECT_PERMISSION_OPERATIONS);
+    const byHand = OPERATIONS.filter(
+      (operation) => operation.minimum === 'any-authenticated' || operation.manualGate === true,
+    ).length;
+    expect(authenticatedOnly).toBe(byHand);
+    const anonymous = OPERATIONS.filter((operation) => operation.minimum === 'anonymous').length;
+    expect(PROJECT_PERMISSION_OPERATIONS + GLOBAL_ADMIN_OPERATIONS + byHand + anonymous).toBe(
+      FACTS.operations,
+    );
+    expect([PROJECT_PERMISSION_OPERATIONS, GLOBAL_ADMIN_OPERATIONS, byHand, anonymous]).toEqual([
+      23, 10, 4, 3,
+    ]);
+
+    // The page says it: the filter asks the policy only for the first group.
+    const callout = section.tabs
+      .find((tab) => tab.id === 'api')
+      ?.blocks.find((block) => block.kind === 'callout');
+    const text = callout && 'text' in callout ? callout.text : '';
+    expect(text).toContain(
+      `las ${String(PROJECT_PERMISSION_OPERATIONS)} operaciones con permiso de proyecto`,
+    );
+    expect(text).toContain(
+      `Las ${String(GLOBAL_ADMIN_OPERATIONS)} de administración global las decide el rol de la cookie`,
+    );
+    const summary = diagram('api-interna')?.summary ?? '';
+    expect(summary).toContain(`Las ${String(GLOBAL_ADMIN_OPERATIONS)} de administración global`);
+    expect(summary).not.toContain(
+      'pasan por un único filtro de acceso que falla cerrado y consulta',
+    );
   });
 
   it('tells where the decision is applied by hand', async () => {

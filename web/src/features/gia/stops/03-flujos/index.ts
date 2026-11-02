@@ -37,7 +37,7 @@ const section: Section = {
           kind: 'callout',
           tone: 'honest',
           title: 'Lo que hace hoy y lo que propone el ADR-17',
-          text: 'Hoy la interfaz sube un archivo por vez, sin reintento automático, y la API puede sobrescribir un archivo huérfano con la misma clave. El ADR-17 (PROPUESTO) cambia esas partes; todavía no están construidas.',
+          text: 'Hoy la interfaz sube un archivo por vez, sin reintento automático. La API puede sobrescribir un archivo huérfano con la misma clave y, si se corta la copia de un archivo, puede quedar uno parcial en el volumen. El tiempo de espera de la pasarela es de 300 s; el ADR-17 estima que un archivo de 6 a 10 GB necesita más y propone 1800 s. El ADR-17 (PROPUESTO) cambia esas partes; todavía no están construidas.',
         },
       ],
     },

@@ -1,3 +1,4 @@
+import { GLOBAL_ADMIN_OPERATIONS, PROJECT_PERMISSION_OPERATIONS } from '../../data/operations';
 import type { Section, StopContent } from '../../model/types';
 import { diagrams } from './diagrams';
 import { tables } from './tables';
@@ -6,7 +7,7 @@ const section: Section = {
   id: 'arquitectura',
   group: 'recorrido',
   title: 'Arquitectura',
-  headline: 'Una sola puerta de entrada, cuatro contenedores y un dueño para cada dato.',
+  headline: 'La pasarela como puerta de entrada, cuatro contenedores y un dueño para cada dato.',
   minutes: 2.5,
   tabs: [
     {
@@ -37,7 +38,7 @@ const section: Section = {
           kind: 'callout',
           tone: 'info',
           title: 'Dónde se decide el acceso',
-          text: 'La decisión vive en una función pura, AccessPolicy.Decide. El filtro la aplica antes de cada acción; la consulta de acceso de las teselas la llama a mano y el listado de proyectos filtra por membresía por su cuenta.',
+          text: `La decisión de proyecto vive en una función pura, AccessPolicy.Decide. El filtro corre antes de cada acción y falla cerrado; solo en las ${String(PROJECT_PERMISSION_OPERATIONS)} operaciones con permiso de proyecto consulta esa función. Las ${String(GLOBAL_ADMIN_OPERATIONS)} de administración global las decide el rol de la cookie, que no se revalida. La consulta de acceso de las teselas llama a la función a mano y el listado de proyectos filtra por membresía por su cuenta.`,
         },
       ],
     },
@@ -58,9 +59,9 @@ const section: Section = {
     },
   ],
   notes: [
-    'Un solo punto de entrada y cada pieza tiene un dueño.',
-    'Todo entra por una sola pasarela. La interfaz y el visor son de la PPS 1, la API y la base de la PPS 2, y el contrato es compartido.',
-    'Pestaña API: el acceso se decide en una función pura que el filtro aplica antes de cada acción.',
+    'La pasarela es la puerta de entrada y cada pieza tiene un dueño.',
+    'La interfaz y el visor son de la PPS 1, la API y la base de la PPS 2, y el contrato es compartido. Hoy el compose publica además la API y la base; el plan es dejar solo la pasarela.',
+    'Pestaña API: el filtro falla cerrado y consulta la función pura en las operaciones con permiso de proyecto; las de administración global las decide el rol de la cookie.',
     'Pestaña SPA: el editor es el hueco; el reparto sigue propuesto (ADR-08).',
   ],
 };

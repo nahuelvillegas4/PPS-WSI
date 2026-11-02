@@ -3,7 +3,7 @@
  * that implements it, so the page cannot keep describing something the code no longer does.
  */
 import { describe, expect, it } from 'vitest';
-import { readRepoFile } from '../../drift/repoFiles.testing';
+import { findRepoText, readRepoFile } from '../../drift/repoFiles.testing';
 import { FEATURES } from '../../model/features';
 import { content } from './index';
 
@@ -63,6 +63,22 @@ describe('tesela: the access check', () => {
     expect(diagram('tesela')).toContain('sin membresía o imagen inexistente');
   });
 
+  it('lets the global admin through without a membership, and the diagram says so', async () => {
+    const controller = await readRepoFile(
+      'api/src/Pps.Api/Controllers/Internal/TileAccessController.cs',
+    );
+    expect(controller).toContain('AccessPolicy.Decide(User.IsInRole(GlobalRoles.Admin)');
+    const policy = await readRepoFile('api/src/Pps.Domain/Access/AccessPolicy.cs');
+    expect(
+      inOrder(policy, ['if (isGlobalAdmin)', 'AccessVerdict.Allowed', 'facts.MemberRole']),
+    ).toBe(true);
+    expect(diagram('tesela')).toContain('la administración global pasa sin ser');
+    expect(diagram('tesela')).toContain('de todo proyecto');
+    expect(content.diagrams.find((item) => item.id === 'tesela')?.summary).toContain(
+      'la administración global pasa sin ser miembro',
+    );
+  });
+
   it('asks the API before serving each tile, and lets only 2xx, 401 and 403 through', async () => {
     const snippet = await readRepoFile('deploy/gateway/snippets/tiles-auth.conf');
     expect(snippet).toContain('auth_request');
@@ -117,7 +133,49 @@ describe('login: session and cookie', () => {
         'return NoContent();',
       ]),
     ).toBe(true);
-    expect(diagram('login')).toContain('5 fallos en 5 min bloquean');
+    const source = diagram('login');
+    expect(source).toContain('5 fallos separados por menos de 5 min');
+    expect(source).toContain('bloquean ese usuario por 5 min (429)');
+  });
+
+  it('counts failures per username, in memory, and says anyone can lock a known account', async () => {
+    const tracker = await readRepoFile('api/src/Pps.Api/Common/Security/LoginAttemptTracker.cs');
+    expect(tracker).toContain('ConcurrentDictionary<string, AttemptRecord>');
+    expect(tracker).toContain('StringComparer.OrdinalIgnoreCase');
+    expect(tracker).not.toMatch(/RemoteIpAddress|IPAddress/);
+    const controller = await readRepoFile('api/src/Pps.Api/Controllers/Auth/AuthController.cs');
+    expect(controller).toContain('_attemptTracker.IsBlocked(request.Username)');
+    expect(controller).not.toMatch(/RemoteIpAddress/);
+    const source = diagram('login');
+    expect(source).toContain('Se cuenta por nombre de usuario y en');
+    expect(source).toContain('cualquiera puede bloquear');
+    expect(source).toContain('una cuenta conocida');
+  });
+
+  it('says that deactivating a user cuts the cookie only at the tiles and /auth/me', async () => {
+    const withIsActive = await findRepoText({
+      in: ['api/src/Pps.Api/**/*.cs'],
+      except: [
+        'api/src/Pps.Api/**/Dtos/**',
+        'api/src/Pps.Api/Controllers/Users/**',
+        'api/src/Pps.Api/Controllers/Members/**',
+      ],
+      pattern: '\\.IsActive|UserIsActive',
+    });
+    expect(
+      withIsActive.sort(),
+      'Otro archivo de la API lee si el usuario está activo: actualizá la nota PARCIAL del diagrama login',
+    ).toEqual([
+      'api/src/Pps.Api/Controllers/Auth/AuthController.cs',
+      'api/src/Pps.Api/Controllers/Internal/TileAccessController.cs',
+    ]);
+    const source = diagram('login');
+    expect(source).toContain('Desactivar a un usuario tampoco');
+    expect(source).toContain('corta su cookie, salvo en las teselas');
+    expect(source).toContain('y en /auth/me');
+    expect(content.diagrams.find((item) => item.id === 'login')?.summary).toContain(
+      'desactivar a un usuario tampoco corta su cookie, salvo en las teselas',
+    );
   });
 
   it('keeps the global role in the cookie and reads the current one only in /auth/me', async () => {
@@ -169,6 +227,68 @@ describe('subida: upload', () => {
     const filter = await readRepoFile('web/src/features/upload/fileFilter.ts');
     expect(filter).toContain("['.svs', '.png', '.jpg', '.jpeg']");
     expect(diagram('subida')).toContain('svs, png o jpg');
+  });
+
+  it('rolls back only the files already saved, so a cut copy can leave a partial file', async () => {
+    const controller = await readRepoFile('api/src/Pps.Api/Controllers/Images/ImagesController.cs');
+    const upload = after(
+      controller,
+      'public async Task<ActionResult<RegisterImagesResponse>> UploadImages',
+    );
+    // The key joins savedKeys only after SaveFileAsync returns, and the catch deletes only savedKeys.
+    expect(
+      inOrder(upload, [
+        'await _storageService.SaveFileAsync(storageKey, stream, cancellationToken);',
+        'savedKeys.Add(storageKey);',
+        'catch',
+        'foreach (var key in savedKeys)',
+        '_storageService.DeleteFile(key);',
+      ]),
+    ).toBe(true);
+    const storage = await readRepoFile(
+      'api/src/Pps.Infrastructure/Storage/PhysicalStorageService.cs',
+    );
+    expect(storage).toContain('FileMode.Create');
+    const source = diagram('subida');
+    expect(source).toContain('alt falla la inspección o el registro');
+    expect(source).toContain('borra los archivos ya escritos');
+    expect(source).toContain('si se corta la copia de un');
+    expect(source).not.toContain('alt falla un paso');
+    expect(content.diagrams.find((item) => item.id === 'subida')?.summary).not.toContain(
+      'Si un paso falla, borra los archivos escritos',
+    );
+  });
+
+  it('lists the errors raised before writing and the gateway wait the page mentions', async () => {
+    const controller = await readRepoFile('api/src/Pps.Api/Controllers/Images/ImagesController.cs');
+    const upload = after(
+      controller,
+      'public async Task<ActionResult<RegisterImagesResponse>> UploadImages',
+    );
+    expect(
+      inOrder(upload, [
+        'NotFoundProblemException',
+        'ValidationProblemException',
+        'ConflictProblemException',
+        'SaveFileAsync',
+      ]),
+    ).toBe(true);
+    const source = diagram('subida');
+    expect(source).toContain('antes de escribir: 404 sin dataset');
+    expect(source).toContain('400 sin archivos, vacíos o repetidos');
+    const nginx = await readRepoFile('deploy/gateway/nginx.conf');
+    const gatewayApi = after(nginx, 'location /api/ {').slice(0, 400);
+    expect(gatewayApi).toContain('proxy_read_timeout 300s;');
+    expect(gatewayApi).toContain('proxy_send_timeout 300s;');
+    expect(source).toContain('espera');
+    expect(source).toContain('de 1800 s en la pasarela (hoy 300 s)');
+    const callout = content.section.tabs
+      .find((tab) => tab.id === 'subir')
+      ?.blocks.flatMap((block) => (block.kind === 'callout' ? [block.text] : []))
+      .join(' ');
+    expect(callout).toContain('300 s');
+    expect(callout).toContain('1800 s');
+    expect(callout).toContain('puede quedar uno parcial');
   });
 
   it('does not yet have the ADR-17 hardening it marks as planned', async () => {
@@ -267,6 +387,31 @@ describe('import-export: exchange', () => {
       ]),
     ).toBe(true);
     expect(importer).toContain('"import-cric"');
+  });
+
+  it('inspects each new image through the tiles service, also in dryRun, before one transaction writes everything', async () => {
+    const importer = await readRepoFile('api/src/Pps.Infrastructure/Import/CricImporter.cs');
+    // The inspection runs before the dryRun branch and a failure is skipped with a warning.
+    expect(
+      inOrder(importer, [
+        '_inspector.InspectAsync',
+        'image-inspection-failed',
+        'if (request.DryRun)',
+        'BeginTransactionAsync',
+        '_db.Users.Add(syntheticUser)',
+        '_db.LabelClasses.AddRange',
+        '_db.Images.AddRange',
+        '_db.Imports.Add(importRecord)',
+      ]),
+    ).toBe(true);
+    const source = diagram('import-export');
+    expect(source).toContain('participant T as Teselas');
+    expect(source).toContain('A->>T: inspecciona cada imagen nueva');
+    expect(source).toContain('también en la simulación');
+    expect(source).toContain('clases que faltan y anotaciones');
+    const summary = content.diagrams.find((item) => item.id === 'import-export')?.summary ?? '';
+    expect(summary).toContain('inspeccionar cada imagen nueva por el servicio de teselas');
+    expect(summary).toContain('las clases que falten');
   });
 
   it('exports with the dataset.export permission and refuses yolo', async () => {

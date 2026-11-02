@@ -2,6 +2,7 @@
  * Diagrams of the architecture stop: containers, context, the API inside and the SPA inside.
  * Status glyphs and classes come from `g()` / `c()`; tripwire items read `FEATURES`.
  */
+import { GLOBAL_ADMIN_OPERATIONS, PROJECT_PERMISSION_OPERATIONS } from '../../data/operations';
 import { c, g } from '../../model/diagramKit';
 import { FACTS } from '../../model/facts';
 import type { DiagramDef } from '../../model/types';
@@ -17,16 +18,19 @@ const contenedores: DiagramDef = {
   kind: 'flowchart',
   title: 'Contenedores',
   summary:
-    `Cuatro contenedores dentro de Docker Compose. El navegador entra solo por la pasarela, que ` +
+    `Cuatro contenedores dentro de Docker Compose. El navegador entra por la pasarela, que ` +
     `sirve la interfaz y reenvía los pedidos a la API y al servicio de teselas, consultando antes ` +
     `a la API si cada tesela puede servirse. La API usa la base de datos, pide al servicio de ` +
     `teselas que inspeccione cada imagen al registrarla y lee y escribe en la carpeta de ` +
     `imágenes; el servicio de teselas la lee en modo solo lectura. Dos líneas punteadas muestran ` +
-    `que la API y la base también se publican hoy en el entorno de desarrollo y que ese acceso ` +
-    `directo está previsto retirarlo.`,
-  caption: 'Línea punteada: acceso directo publicado solo para desarrollo; el plan es retirarlo.',
+    `que hoy el compose.yaml publica también la API y la base de datos en todas las interfaces ` +
+    `del equipo, porque no existe un compose del servidor. El plan documentado es dejar solo la ` +
+    `pasarela o limitar esas publicaciones al equipo local.`,
+  caption:
+    'Línea punteada: lo que publica hoy el compose.yaml además de la pasarela; el plan documentado es dejar solo la pasarela o limitarlo al equipo local.',
   source: `flowchart LR
   nav["Navegador"]
+  host["Equipo o red local"]
   subgraph compose["Docker Compose: ${COMPOSE_SERVICES.length} contenedores"]
     gw["${g('done')} Pasarela<br/>Nginx + SPA · PPS 1"]${c('done')}
     api["${g('done')} API<br/>ASP.NET Core 10 · PPS 2"]${c('done')}
@@ -35,7 +39,7 @@ const contenedores: DiagramDef = {
   end
   imgs[("${g('done')} Imágenes<br/>carpeta del laboratorio")]${c('done')}
   vols[("${g('done')} Volúmenes<br/>datos de la base y claves")]${c('done')}
-  nav -->|"único punto de entrada"| gw
+  nav -->|"punto de entrada"| gw
   gw -->|"/api/ y consulta de acceso"| api
   gw -->|"/tiles/ tras autorizar"| tiles
   api --> db
@@ -44,8 +48,8 @@ const contenedores: DiagramDef = {
   tiles ---|"solo lectura"| imgs
   db --- vols
   api --- vols
-  nav -.->|"${g('partial')} publicado solo<br/>en desarrollo (a retirar)"| api
-  nav -.->|"${g('partial')} publicado solo<br/>en desarrollo (a retirar)"| db`,
+  host -.->|"${g('partial')} publicado hoy<br/>por compose.yaml"| api
+  host -.->|"${g('partial')} publicado hoy<br/>por compose.yaml"| db`,
   usesStatus: true,
   sources: [
     { kind: 'config', ref: 'compose.yaml', note: 'servicios, volúmenes y publicación de puertos' },
@@ -56,6 +60,16 @@ const contenedores: DiagramDef = {
       note: 'contenedores (C4, nivel 2)',
     },
     { kind: 'adr', ref: 'docs/adr/0011-un-compose-dos-entornos.md' },
+    {
+      kind: 'doc',
+      ref: 'docs/arquitectura/04-despliegue-y-conceptos.md:5-40',
+      note: 'despliegue previsto (Figura 7)',
+    },
+    {
+      kind: 'adr',
+      ref: 'docs/adr/0016-autorizacion-por-proyecto-y-sesion.md',
+      note: 'propone limitar las publicaciones al equipo local',
+    },
   ],
   priority: 'P0',
 };
@@ -68,8 +82,9 @@ const contexto: DiagramDef = {
     `GIA en su entorno. La administración global gestiona usuarios y proyectos e importa; los ` +
     `miembros de un proyecto ven las imágenes según su rol y anotar falta hasta que exista el ` +
     `editor. GIA lee la carpeta de imágenes del laboratorio, importa archivos CRIC solo por la ` +
-    `API y exporta JSON interno y COCO; la exportación YOLO no existe. El servidor del ` +
-    `laboratorio donde correrá todo todavía no está definido.`,
+    `API y exporta JSON interno y COCO; la exportación YOLO no existe y el ADR-10 la deja ` +
+    `condicionada a que sobre tiempo. El servidor del laboratorio donde correrá todo todavía ` +
+    `no está definido.`,
   source: `flowchart LR
   adm(["Administración global"])
   mem(["Miembro de proyecto<br/>lector, anotador o admin del proyecto"])
@@ -78,7 +93,7 @@ const contexto: DiagramDef = {
   cric["${g('partial')} Archivos CRIC"]${c('partial')}
   json["${g('done')} JSON interno"]${c('done')}
   coco["${g('done')} COCO"]${c('done')}
-  yolo["${g('yolo')} YOLO"]${c('yolo')}
+  yolo["${g('yolo')} YOLO<br/>condicional, ADR-10"]${c('yolo')}
   srv["${g('unknown')} Servidor del laboratorio<br/>o VM equivalente"]${c('unknown')}
   adm -->|"gestiona usuarios y proyectos, importa"| gia
   mem -->|"ve según su rol<br/>anotar: falta el editor"| gia
@@ -108,12 +123,15 @@ const apiInterna: DiagramDef = {
   title: 'La API por dentro',
   summary:
     `Dentro de la API, los ${FACTS.controllers} controladores con sus ${FACTS.operations} ` +
-    `operaciones pasan por un único filtro de acceso que falla cerrado y consulta una función ` +
-    `pura, AccessPolicy.Decide, con los datos de pertenencia que lee de la base. Los ` +
-    `controladores usan además el validador de geometrías con control de versión de las ` +
-    `anotaciones, el importador CRIC, los exportadores, el servicio de almacenamiento y el ` +
-    `inspector de imágenes. Dos piezas propuestas, el validador de sesión y la guarda contra ` +
-    `pedidos de otros sitios, todavía no existen.`,
+    `operaciones pasan por un único filtro de acceso que falla cerrado. Para las ` +
+    `${PROJECT_PERMISSION_OPERATIONS} operaciones con permiso de proyecto, el filtro consulta ` +
+    `una función pura, AccessPolicy.Decide, con los datos de pertenencia que lee de la base. ` +
+    `Las ${GLOBAL_ADMIN_OPERATIONS} de administración global las decide el rol de la cookie; ` +
+    `el listado de proyectos y la consulta de acceso de las teselas aplican la regla por su ` +
+    `cuenta. Los controladores usan además el validador de geometrías con control de versión ` +
+    `de las anotaciones, el importador CRIC, los exportadores, el servicio de almacenamiento y ` +
+    `el inspector de imágenes. Dos piezas propuestas, el validador de sesión y la guarda ` +
+    `contra pedidos de otros sitios, todavía no existen.`,
   source: `flowchart TB
   ctl["${g('done')} Controladores: ${FACTS.controllers}<br/>${FACTS.operations} operaciones"]${c('done')}
   guard["${g('done')} AccessGuardFilter<br/>falla cerrado"]${c('done')}
@@ -128,7 +146,7 @@ const apiInterna: DiagramDef = {
   sess["${g('sessionValidator')} SessionValidator<br/>propuesto, ADR-16"]${c('sessionValidator')}
   csrf["${g('csrfGuard')} FetchMetadataGuard<br/>propuesto, ADR-16"]${c('csrfGuard')}
   ctl --> guard
-  guard -->|"decide"| policy
+  guard -->|"decide: ${PROJECT_PERMISSION_OPERATIONS} con permiso<br/>de proyecto"| policy
   guard --> reader
   reader --> db
   ctl --> geom

@@ -35,7 +35,7 @@ export const CONTAINERS: readonly ContainerDef[] = [
     role: 'Ingreso, catálogo, anotaciones, importación, exportación y consulta de acceso de las teselas',
     owner: 'PPS 2',
     published: true,
-    publishedText: 'Sí, solo en desarrollo (a retirar)',
+    publishedText: 'Sí, en todas las interfaces; plan: retirarlo o limitarlo al equipo local',
     publishedStatus: 'partial',
   },
   {
@@ -54,7 +54,7 @@ export const CONTAINERS: readonly ContainerDef[] = [
     role: 'Persistencia de usuarios, proyectos, imágenes y anotaciones; solo la API la usa',
     owner: 'PPS 2',
     published: true,
-    publishedText: 'Sí, solo en desarrollo (a retirar)',
+    publishedText: 'Sí, en todas las interfaces; plan: retirarlo o limitarlo al equipo local',
     publishedStatus: 'partial',
   },
 ];
@@ -62,13 +62,14 @@ export const CONTAINERS: readonly ContainerDef[] = [
 const contenedores: TableDef = {
   id: 'contenedores',
   title: 'Contenedores',
-  caption: 'Los cuatro servicios de Compose. Los puertos no se muestran.',
+  caption:
+    'Los cuatro servicios de Compose. Los puertos no se muestran. No existe un compose del servidor: el compose.yaml publica la API y la base de datos en todas las interfaces del equipo. El plan documentado es dejar solo la pasarela (arquitectura, Figura 7) o limitarlas al equipo local (ADR-16, propuesto).',
   columns: [
     { key: 'name', label: 'Servicio' },
     { key: 'tech', label: 'Tecnología' },
     { key: 'role', label: 'Rol' },
     { key: 'owner', label: 'Módulo' },
-    { key: 'published', label: 'Publicado en desarrollo' },
+    { key: 'published', label: 'Publicado hoy en el equipo' },
     { key: 'status', label: 'Estado', align: 'center' },
   ],
   rows: CONTAINERS.map((container): Record<string, Cell> => ({
@@ -87,6 +88,8 @@ const contenedores: TableDef = {
     { kind: 'config', ref: 'api/Dockerfile:20', note: 'imagen de la API' },
     { kind: 'config', ref: 'tiles/Dockerfile:3', note: 'imagen del servicio de teselas' },
     { kind: 'doc', ref: 'docs/arquitectura/03-bloques-y-ejecucion.md:5-31' },
+    { kind: 'doc', ref: 'docs/arquitectura/04-despliegue-y-conceptos.md:5-40', note: 'Figura 7' },
+    { kind: 'adr', ref: 'docs/adr/0016-autorizacion-por-proyecto-y-sesion.md' },
   ],
 };
 

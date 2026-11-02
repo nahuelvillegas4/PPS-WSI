@@ -1,5 +1,6 @@
 import { PROJECT_ROLE_LABELS } from '../../../access/access';
 import { GLOBAL_ROLE_LABELS } from '../../../users/globalRoleLabels';
+import { GLOBAL_ADMIN_OPERATIONS } from '../../data/operations';
 import { c, g, statusOf, type StatusRef } from '../../model/diagramKit';
 import { STATUS_META } from '../../model/status';
 import type { DiagramDef } from '../../model/types';
@@ -84,8 +85,7 @@ export const DIAGRAMS_PERMISOS: readonly DiagramDef[] = [
     title: 'Cómo decide la API',
     summary:
       'Árbol de decisión de la API ante un pedido sobre un recurso de un proyecto: sesión, existencia del recurso, administrador global, membresía, rol mínimo y autoría, con los resultados 401, 404, 403 o permitido.',
-    caption:
-      'Falla cerrado: un endpoint sin exactamente una declaración de acceso se deniega con 403. La política es una función pura, la misma en la API y en la consulta de acceso de las teselas.',
+    caption: `Falla cerrado: un endpoint sin exactamente una declaración de acceso se deniega con 403. La política es una función pura, la misma en la API y en la consulta de acceso de las teselas. Las ${String(GLOBAL_ADMIN_OPERATIONS)} operaciones de administración global no pasan por este árbol: las decide el rol de la cookie.`,
     source: DECISION_ACCESO,
     usesStatus: true,
     sources: [
