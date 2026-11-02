@@ -1,6 +1,9 @@
+import { FACTS } from '../../model/facts';
 import type { StopContent } from '../../model/types';
+import { DIAGRAMS_DATOS } from './diagrams';
+import { TABLES_DATOS } from './tables';
 
-// Stub from unit U0: the owner unit of this stop replaces the section and fills diagrams/tables.
+/** Stop 4: the persistence model as migrated, and the extensions that have no schedule. */
 export const content: StopContent = {
   section: {
     id: 'datos',
@@ -10,13 +13,53 @@ export const content: StopContent = {
     minutes: 2,
     tabs: [
       {
-        id: 'resumen',
-        label: 'Resumen',
-        blocks: [{ kind: 'callout', tone: 'info', text: 'Contenido en construcción.' }],
+        id: 'implementado',
+        label: 'Implementado',
+        blocks: [
+          { kind: 'diagram', id: 'er-implementado' },
+          {
+            kind: 'callout',
+            tone: 'info',
+            title: 'Dos claves foráneas compuestas',
+            text: 'La base garantiza que la clase de una anotación pertenece al dataset de su imagen: annotations referencia images(dataset_id, id) y label_classes(dataset_id, id) con el mismo dataset_id. Por eso annotations repite dataset_id a propósito (ADR-07).',
+          },
+          { kind: 'table', id: 'tablas' },
+        ],
+      },
+      {
+        id: 'objetivo',
+        label: 'Objetivo',
+        blocks: [
+          {
+            kind: 'callout',
+            tone: 'info',
+            text: 'El modelo que fija el ADR-07 ya está migrado completo. Lo que falta son extensiones que la arquitectura nombra y que no tienen cronograma.',
+          },
+          { kind: 'diagram', id: 'er-objetivo' },
+          {
+            kind: 'list',
+            items: [
+              'annotation_revisions: historial de cambios de cada anotación. PLANIFICADO, sin cronograma; las columnas están sin decidir.',
+              'Estado de revisión por imagen, para una cola de revisión. PLANIFICADO, sin cronograma; la tabla y las columnas están sin decidir.',
+              'users.session_version: el ADR-16 propone derivar el sello de sesión del hash de la contraseña o agregar esta columna; se decide al implementar.',
+              'Valores nuevos que no piden migración: formato dicom en las imágenes y origen model en las anotaciones. PLANIFICADO.',
+              'El conjunto de anotaciones por usuario ya existe como consulta (filtro de autores); no hay tabla.',
+            ],
+          },
+        ],
       },
     ],
-    notes: ['Contenido en construcción.', 'Contenido en construcción.'],
+    notes: [
+      'El modelo del ADR-07 ya está migrado entero.',
+      `Son ${FACTS.tables} tablas y ${FACTS.migrations} migraciones, del 17/10 al 01/11; la base garantiza que la clase pertenece al dataset de la imagen.`,
+      'El objetivo agrega solo extensiones sin cronograma: historial de revisiones y estado de revisión por imagen.',
+      'Los nombres únicos de dataset y de clase los valida la API, no la base.',
+    ],
+    detail: [
+      { kind: 'table', id: 'integridad' },
+      { kind: 'table', id: 'migraciones' },
+    ],
   },
-  diagrams: [],
-  tables: [],
+  diagrams: DIAGRAMS_DATOS,
+  tables: TABLES_DATOS,
 };
