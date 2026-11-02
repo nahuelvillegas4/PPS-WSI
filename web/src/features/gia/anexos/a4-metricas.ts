@@ -1,6 +1,6 @@
 import { MEASURED } from '../data/measured';
 import { FACTS } from '../model/facts';
-import type { Measured } from '../model/status';
+import { SNAPSHOT, type Measured } from '../model/status';
 import type { Cell, StopContent, TableDef } from '../model/types';
 import { describeMeasured, formatNumber } from '../stops/07-calidad/measuredText';
 
@@ -44,7 +44,11 @@ export const metricasTable: TableDef = {
       'Operaciones (operationId) de contract/openapi/tiles.v1.yaml.',
     ),
     systemRow('Controladores de la API', FACTS.controllers, 'Archivos *Controller.cs de api/src.'),
-    systemRow('Tablas', FACTS.tables, 'Tablas declaradas en el contexto de datos (ToTable).'),
+    systemRow(
+      'Tablas',
+      FACTS.tables,
+      'Tablas del modelo (AppDbContextModelSnapshot.cs); coinciden con los CreateTable de las migraciones.',
+    ),
     systemRow('Migraciones', FACTS.migrations, 'Archivos de migración, sin los .Designer.cs.'),
     systemRow(
       'Pantallas del producto',
@@ -57,9 +61,9 @@ export const metricasTable: TableDef = {
       'ADR numerados de docs/adr, sin el índice ni la plantilla.',
     ),
     systemRow(
-      'Requisitos de las dos PPS',
+      'Requisitos de las dos PPS (desglose propio)',
       FACTS.requirements,
-      'Filas de la tabla de requisitos del anexo A2 (PPS 1 y PPS 2).',
+      'Filas de la tabla de requisitos del anexo A2 (PPS 1 y PPS 2): el desglose que hizo el equipo de los enunciados, que no los numeran así.',
     ),
 
     // Measured on the snapshot commit ----------------------------------------------------------
@@ -147,7 +151,7 @@ export const content: StopContent = {
             kind: 'callout',
             tone: 'honest',
             title: 'Un número, una fecha',
-            text: 'Estos valores se contaron en una fecha y sobre un commit; no se actualizan solos. Las líneas de código se cuentan sobre archivos versionados, así que no incluyen dependencias ni salidas de compilación.',
+            text: `Estos valores se contaron en una fecha y sobre un commit; no se actualizan solos. Las líneas de código se cuentan sobre archivos versionados, así que no incluyen dependencias ni salidas de compilación. Los números de la web y del repositorio son del commit ${SNAPSHOT.commit}, anterior a esta guía: no incluyen sus archivos ni sus pruebas, así que npm test da hoy otra cifra.`,
           },
           { kind: 'table', id: metricasTable.id },
         ],

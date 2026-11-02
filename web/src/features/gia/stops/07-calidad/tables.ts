@@ -4,7 +4,10 @@ import { FACTS } from '../../model/facts';
 import type { TableDef } from '../../model/types';
 import { formatDate, formatNumber } from './measuredText';
 
-const SUITE_RUN = `${formatDate(MEASURED.webTestCases.asOf)} · ${MEASURED.webTestCases.commit}`;
+/** When each suite last ran: the three were not run on the same day or on the same commit. */
+const API_RUN = `Corrida del ${formatDate(MEASURED.apiTestCases.asOf)} en contenedor · el código de la API no cambió desde ${MEASURED.apiTestCases.commit}`;
+const WEB_RUN = `${formatDate(MEASURED.webTestCases.asOf)} · copia exportada de ${MEASURED.webTestCases.commit}, sin las pruebas de esta guía`;
+const TILES_RUN = `Última corrida registrada: ${formatDate(MEASURED.tilesTestFunctions.asOf)} · ${MEASURED.tilesTestFunctions.commit}; el código no cambió desde entonces`;
 
 /** How each automated check ran, what it covers and where it stops. Numbers come from MEASURED. */
 export const pruebasTable: TableDef = {
@@ -22,7 +25,7 @@ export const pruebasTable: TableDef = {
   rows: [
     {
       suite: 'API (xUnit)',
-      ran: `Binario compilado el 01/11/2026 · nombres idénticos a ${MEASURED.apiTestCases.commit}`,
+      ran: API_RUN,
       cases: `${formatNumber(MEASURED.apiTestCases.value)} casos de ${formatNumber(MEASURED.apiTestMethods.value)} métodos`,
       scope:
         'Autorización por proyecto y matriz de operaciones, geometrías, ciclo de vida de las anotaciones, importación CRIC, exportación JSON interno y COCO, almacenamiento',
@@ -30,7 +33,7 @@ export const pruebasTable: TableDef = {
     },
     {
       suite: 'Web (Vitest)',
-      ran: SUITE_RUN,
+      ran: WEB_RUN,
       cases: `${formatNumber(MEASURED.webTestCases.value)} de ${formatNumber(MEASURED.webTestCases.value)} casos en ${formatNumber(MEASURED.webTestFiles.value)} archivos`,
       scope:
         'Cliente de la API, router, permisos por rol, cola de subida, coordenadas del visor y casos numéricos del contrato',
@@ -38,7 +41,7 @@ export const pruebasTable: TableDef = {
     },
     {
       suite: 'Teselas (pytest)',
-      ran: SUITE_RUN,
+      ran: TILES_RUN,
       cases: `${formatNumber(MEASURED.tilesTestFunctions.value)} de ${formatNumber(MEASURED.tilesTestFunctions.value)} casos`,
       scope: 'Descriptor DZI, teselas, inspección, salud y registro de diapositivas',
       limit: 'Imágenes PNG y JPG sintéticas; ninguna prueba automática abre un SVS real',
@@ -46,16 +49,17 @@ export const pruebasTable: TableDef = {
     {
       suite: 'Contrato (check_contract.py)',
       ran: 'A mano; no corre en ninguna integración continua',
-      cases: '7 bloques de verificación',
+      cases: '7 bloques (2 se omiten si faltan openslide-python u openapi-spec-validator)',
       scope: `Esquemas, casos numéricos y matriz de autorización de ${FACTS.operations} operaciones frente a la OpenAPI`,
       limit: 'No compara la OpenAPI que genera la API con la del contrato',
     },
     {
-      suite: 'Verificaciones manuales del equipo',
+      suite: 'Verificaciones asistidas del 01/11',
       ran: '01/11/2026',
-      cases: '78/78 chequeos contra el sistema levantado y 8/8 pasos en el navegador',
+      cases:
+        '78/78 chequeos contra el sistema levantado y 8/8 pasos en el navegador (estos, con un agente)',
       scope: 'Ingreso real, recorrido en el navegador y ensayo de la migración de ida y vuelta',
-      limit: 'Verificación manual del equipo el 01/11, no reproducible desde el repositorio',
+      limit: 'Registro local del 01/11, no reproducible desde el repositorio',
     },
   ],
   sources: [
@@ -74,7 +78,8 @@ export const pruebasTable: TableDef = {
     },
     { kind: 'test', ref: 'tiles/tests/conftest.py', note: 'Imágenes sintéticas' },
     { kind: 'code', ref: 'scripts/check_contract.py' },
-    { kind: 'manual', ref: 'Registro local del equipo del 01/11/2026, no versionado' },
+    { kind: 'doc', ref: 'tiles/README.md', note: '24 pruebas y su comando' },
+    { kind: 'manual', ref: 'Registro local del 01/11/2026, no versionado' },
   ],
 };
 
@@ -93,14 +98,14 @@ export const qsTable: TableDef = {
   rows: [
     {
       qs: 'QS-1',
-      goal: 'Corrección: error ≤ 1e-6 px de nivel 0 e ida y vuelta ≤ 0,5 px entre zoom 1:64 y 4:1, con ambos adaptadores del visor',
+      goal: 'Corrección: error ≤ 1e-6 px de nivel 0 e ida y vuelta ≤ 0,5 px de pantalla entre zoom 1:64 y 4:1, con ambos adaptadores del visor',
       state: { status: 'partial' },
       evidence:
         'web/src/features/viewer/coordinates.test.ts: los tres casos del contrato con tolerancia 1e-6; no recorre todo el rango de zoom y solo existe el adaptador de OpenSeadragon',
     },
     {
       qs: 'QS-2',
-      goal: 'Independencia del zoom: el JSON guardado es idéntico al reabrir con otro zoom (≤ 1 px)',
+      goal: 'Independencia del zoom: JSON guardado idéntico byte a byte; desplazamiento visual ≤ 1 px de pantalla',
       state: { status: statusOf('editor') },
       evidence: 'Necesita el editor: hoy ninguna prueba puede dibujar una figura',
     },
@@ -155,8 +160,9 @@ export const qsTable: TableDef = {
     {
       qs: 'QS-10',
       goal: 'Mantenibilidad: las pruebas de un módulo corren con un comando en ≤ 15 min desde el clon',
-      state: { status: 'unknown' },
-      evidence: 'Sin ensayo registrado',
+      state: { status: 'partial' },
+      evidence:
+        'web/README.md y tiles/README.md documentan su comando de pruebas; api/README.md no documenta el de la API, la suite más grande; no hay ensayo registrado desde un clon',
     },
   ],
   sources: [

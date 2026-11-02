@@ -120,7 +120,10 @@ export const riesgosTable: TableDef = {
       r: 'R13',
       risk: 'El servidor del laboratorio no está disponible a tiempo',
       pi: 'Media / Alto',
-      state: { status: 'unknown', text: 'Sin respuesta sobre el acceso al servidor (S2)' },
+      state: {
+        status: 'unknown',
+        text: 'Sin decisión registrada sobre el acceso al servidor (S2)',
+      },
     },
     {
       r: 'R14',

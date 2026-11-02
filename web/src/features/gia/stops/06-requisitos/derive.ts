@@ -5,7 +5,7 @@
 import { FEATURES, type FeatureId } from '../../model/features';
 import { statusOf } from '../../model/diagramKit';
 import { toStatus, type ReqState, type Status } from '../../model/status';
-import type { Block, GapTheme, Requirement } from '../../model/types';
+import type { Block, GapTheme, Requirement, StatusLabels } from '../../model/types';
 
 export interface StateCounts {
   implemented: number;
@@ -44,13 +44,30 @@ export function ofPps(rows: readonly Requirement[], pps: 1 | 2): Requirement[] {
   return rows.filter((row) => row.pps === pps);
 }
 
-/** Headline of stop 6, at most 90 characters, computed from the rows. */
+/**
+ * Headline of stop 6, at most 90 characters, computed from the rows. The rows are the team's own
+ * breakdown of the two statements, which do not number 79 requirements, and the headline says so.
+ */
 export function buildHeadline(rows: readonly Requirement[]): string {
   const counts = stateCounts(rows);
   return (
-    `De ${rows.length} requisitos de las dos PPS: ${counts.implemented} cumplidos, ` +
+    `De ${rows.length} requisitos (desglose propio): ${counts.implemented} cumplidos, ` +
     `${counts.partial} parciales y ${pendingCount(counts)} pendientes.`
   );
+}
+
+/**
+ * The waffle and the bars draw planned and not started requirements with the same square, so
+ * their captions call that status "pendiente" instead of "planificado": only one requirement is
+ * truly planned. The tooltips and the table of annex A2 keep the two states apart.
+ */
+export const PENDING_LABELS: StatusLabels = {
+  planned: { singular: 'pendiente', plural: 'pendientes' },
+};
+
+/** "1 pendiente", "3 pendientes". */
+function counted(n: number, singular: string, plural: string): string {
+  return `${String(n)} ${n === 1 ? singular : plural}`;
 }
 
 /** One square per requirement, by PPS, ordered built first so the waffle reads as a fill level. */
@@ -66,7 +83,7 @@ export function buildWaffle(rows: readonly Requirement[]): Block {
       })),
     };
   };
-  return { kind: 'waffle', groups: [group(1), group(2)] };
+  return { kind: 'waffle', groups: [group(1), group(2)], statusLabels: PENDING_LABELS };
 }
 
 /** Segments of one bar: built, partial and pending (planned plus not started); empty ones are dropped. */
@@ -88,6 +105,7 @@ export function buildBars(rows: readonly Requirement[]): Block {
       { label: 'PPS 2', segments: segmentsOf(ofPps(rows, 2)) },
       { label: 'Ambas PPS', segments: segmentsOf(rows) },
     ],
+    statusLabels: PENDING_LABELS,
   };
 }
 
@@ -138,7 +156,7 @@ export const THEME_NOTE: Record<GapTheme, string> = {
   alcance:
     'El cambio de alcance (roles por proyecto y subida de imágenes) no tiene aprobación registrada ni contrapartida de esfuerzo acordada.',
   documentacion:
-    'Faltan el manual de instalación y uso y la guía de importación y exportación; varios README describen un estado anterior.',
+    'Faltan el manual de instalación y uso, la guía de importación y exportación y el comando de pruebas de la API; varios README describen un estado anterior.',
 };
 
 export interface ThemeSummary {
@@ -160,9 +178,14 @@ export function summarizeThemes(rows: readonly Requirement[]): ThemeSummary[] {
   return summaries.sort((a, b) => b.rows.length - a.rows.length);
 }
 
-/** A theme whose open requirements are all pending shows as planned; otherwise some of it exists. */
-function themeStatus(summary: ThemeSummary): Status {
-  return summary.partial === 0 ? 'planned' : 'partial';
+/**
+ * A theme with something built in part shows as partial. When everything open is pending it shows
+ * as planned only if some requirement is planned; if all of them are not started, nothing is
+ * built or planned there and the card carries no state at all.
+ */
+function themeStatus(summary: ThemeSummary): Status | undefined {
+  if (summary.partial > 0) return 'partial';
+  return summary.rows.some((row) => row.state === 'planned') ? 'planned' : undefined;
 }
 
 export function buildGapCards(rows: readonly Requirement[]): Block {
@@ -170,7 +193,7 @@ export function buildGapCards(rows: readonly Requirement[]): Block {
     kind: 'cards',
     items: summarizeThemes(rows).map((summary) => ({
       title: THEME_TITLE[summary.theme],
-      body: `${summary.rows.length} requisitos abiertos (${summary.partial} parciales, ${summary.pending} pendientes). ${THEME_NOTE[summary.theme]}`,
+      body: `${counted(summary.rows.length, 'requisito abierto', 'requisitos abiertos')} (${counted(summary.partial, 'parcial', 'parciales')}, ${counted(summary.pending, 'pendiente', 'pendientes')}). ${THEME_NOTE[summary.theme]}`,
       status: themeStatus(summary),
       chips: summary.rows.map((row) => row.id),
     })),

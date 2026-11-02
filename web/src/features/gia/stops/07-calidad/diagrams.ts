@@ -13,7 +13,7 @@ export const contratoVerificacion: DiagramDef = {
   kind: 'flowchart',
   title: 'Qué verifica el contrato',
   summary:
-    'Diagrama de flujo de izquierda a derecha. El contrato (OpenAPI, esquemas JSON, casos numéricos y matriz de autorización) alimenta a cuatro verificadores que existen hoy: el script del contrato, xUnit, Vitest y pytest. Tres verificadores usan la matriz. Cuatro piezas planificadas aparecen punteadas: integración continua, una prueba de la matriz por HTTP, la comparación de la OpenAPI generada y los tipos TypeScript generados.',
+    'Diagrama de flujo de izquierda a derecha. El contrato (OpenAPI, esquemas JSON, casos numéricos y matriz de autorización) alimenta a cuatro verificadores que existen hoy: el script del contrato, xUnit, Vitest y pytest. Tres verificadores usan la matriz. Cuatro piezas planificadas aparecen con borde discontinuo: integración continua, una prueba de la matriz por HTTP, la comparación de la OpenAPI generada y los tipos TypeScript generados.',
   caption:
     'Los archivos del contrato son la fuente única; cada verificador lee solo los que le corresponden.',
   source: `flowchart LR

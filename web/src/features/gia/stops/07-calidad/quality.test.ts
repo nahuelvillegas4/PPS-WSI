@@ -10,7 +10,7 @@ import {
 import { FACTS } from '../../model/facts';
 import { FEATURES } from '../../model/features';
 import type { Block } from '../../model/types';
-import { statusOfCell, textOf } from './cells.testing';
+import { chipTextOf, statusOfCell, textOf } from './cells.testing';
 import { contratoVerificacion } from './diagrams';
 import { content } from './index';
 import { riesgosTable } from './risks';
@@ -48,7 +48,7 @@ describe('stop 7: structure', () => {
     ]);
     const callout = first.find((item) => item.kind === 'callout');
     expect(callout?.kind === 'callout' ? callout.text : '').toMatch(
-      /^Ejecutado el 02\/11\/2026 sobre HEAD 2584cfc: API 292 casos \(152 métodos;/,
+      /^Cada suite, con su fecha: API 292 casos \(152 métodos; corrida del 01\/11 en contenedor;/,
     );
   });
 
@@ -85,19 +85,43 @@ describe('stop 7: structure', () => {
 });
 
 describe('table pruebas', () => {
-  it('has the four suites of the design and the manual checks, labelled as manual', () => {
+  it('has the four suites of the design and the 01/11 checks, labelled as assisted and local', () => {
     expect(pruebasTable.rows.map((row) => row.suite)).toEqual([
       'API (xUnit)',
       'Web (Vitest)',
       'Teselas (pytest)',
       'Contrato (check_contract.py)',
-      'Verificaciones manuales del equipo',
+      'Verificaciones asistidas del 01/11',
     ]);
-    const manual = pruebasTable.rows[4];
-    expect(manual?.limit).toBe(
-      'Verificación manual del equipo el 01/11, no reproducible desde el repositorio',
-    );
+    const assisted = pruebasTable.rows[4];
+    expect(assisted?.limit).toBe('Registro local del 01/11, no reproducible desde el repositorio');
+    // The record says the 8 browser steps were run with an agent; the table must not say "manual".
+    expect(assisted?.cases).toContain('(estos, con un agente)');
+    expect(JSON.stringify(pruebasTable)).not.toMatch(/manual(es)? del equipo/i);
   });
+
+  it('gives each suite its own run: the API on 01/11, the web on the snapshot, tiles on 17/10', () => {
+    const [api, web, tiles] = pruebasTable.rows;
+    expect(api?.ran).toBe(
+      'Corrida del 01/11/2026 en contenedor · el código de la API no cambió desde 871f574',
+    );
+    expect(web?.ran).toBe('02/11/2026 · copia exportada de 2584cfc, sin las pruebas de esta guía');
+    expect(tiles?.ran).toBe(
+      'Última corrida registrada: 17/10/2026 · dc5f93c; el código no cambió desde entonces',
+    );
+    expect(JSON.stringify(pruebasTable)).not.toMatch(/HEAD/);
+  });
+
+  it('counts the blocks of the contract checker and says which ones can be skipped', async () => {
+    const contract = pruebasTable.rows[3];
+    expect(contract?.cases).toBe(
+      '7 bloques (2 se omiten si faltan openslide-python u openapi-spec-validator)',
+    );
+    const script = await readRepoFile('scripts/check_contract.py');
+    expect(script).toContain('openslide-python no está instalado');
+    expect(script).toContain('openapi-spec-validator no está instalado');
+    expect(script).toContain('Este bloque es obligatorio');
+  }, 30_000);
 
   it('takes its figures from MEASURED', () => {
     const [api, web, tiles] = pruebasTable.rows;
@@ -131,8 +155,28 @@ describe('table qs', () => {
     expect(Object.values(states)).not.toContain('done');
     expect(states['QS-2']).toBe(FEATURES.editor.status);
     expect(states['QS-5']).toBe(FEATURES.smoke.status);
-    expect(states['QS-10']).toBe('unknown');
+    expect(states['QS-10']).toBe('partial');
   });
+
+  it('words QS-1 and QS-2 as the architecture document does: pixels of the screen, byte for byte', async () => {
+    const goal = (id: string) => textOf(qsTable.rows.find((row) => textOf(row.qs) === id)?.goal);
+    expect(goal('QS-1')).toContain('ida y vuelta ≤ 0,5 px de pantalla');
+    expect(goal('QS-2')).toContain('JSON guardado idéntico byte a byte');
+    expect(goal('QS-2')).toContain('desplazamiento visual ≤ 1 px de pantalla');
+    const doc = await readRepoFile('docs/arquitectura/05-calidad-y-riesgos.md');
+    expect(doc).toContain('ida y vuelta ≤ 0,5 px de pantalla');
+    expect(doc).toContain(
+      'JSON guardado idéntico byte a byte; desplazamiento visual ≤ 1 px de pantalla',
+    );
+  }, 30_000);
+
+  it('shows QS-10 as partial because only the web and the tiles document their test command', async () => {
+    const qs10 = textOf(qsTable.rows.find((row) => textOf(row.qs) === 'QS-10')?.evidence);
+    expect(qs10).toContain('api/README.md no documenta el de la API');
+    expect(await readRepoFile('web/README.md')).toContain('npm test');
+    expect(await readRepoFile('tiles/README.md')).toContain('pytest');
+    expect(await readRepoFile('api/README.md')).not.toMatch(/dotnet test/);
+  }, 30_000);
 
   it('quotes the performance figures from MEASURED, with the date, and says they must be repeated', () => {
     const qs4 = textOf(qsTable.rows[3]?.evidence);
@@ -146,6 +190,14 @@ describe('table qs', () => {
     const inA3 = blocksOf(a3.section.tabs).filter((item) => item.kind === 'table');
     expect(inA3).toContainEqual({ kind: 'table', id: 'qs' });
     expect(a3.tables.map((table) => table.id)).toEqual(['riesgos']);
+  });
+});
+
+describe('risk R13', () => {
+  it('says no decision is recorded about the server, not that the supervision did not answer', () => {
+    const r13 = riesgosTable.rows.find((row) => textOf(row.r) === 'R13');
+    expect(chipTextOf(r13?.state)).toBe('Sin decisión registrada sobre el acceso al servidor (S2)');
+    expect(JSON.stringify(riesgosTable)).not.toMatch(/sin respuesta|no respondi/i);
   });
 });
 
@@ -201,7 +253,7 @@ describe('claims of stop 7 against the repository', () => {
     expect(await findRepoText({ in: ['api/tests/**'], pattern: 'WebApplicationFactory' })).toEqual(
       [],
     );
-  });
+  }, 30_000);
 
   it('has web tests of pure logic only: no component tests and no browser runner', async () => {
     expect(matchRepoGlob('web/src/**/*.test.tsx')).toEqual([]);
@@ -214,7 +266,7 @@ describe('claims of stop 7 against the repository', () => {
     expect(await findRepoText({ in: ['tiles/tests/**'], pattern: 'svs|SVS' })).toEqual([]);
     const conftest = await readRepoFile('tiles/tests/conftest.py');
     expect(conftest).toContain('_draw_test_image');
-  });
+  }, 30_000);
 
   it('keeps the contract checker out of any continuous integration', () => {
     expect(repoPathExists('scripts/check_contract.py')).toBe(true);

@@ -12,3 +12,8 @@ export function textOf(cell: Cell | undefined): string {
 export function statusOfCell(cell: Cell | undefined): string | undefined {
   return typeof cell === 'object' && 'status' in cell ? cell.status : undefined;
 }
+
+/** The text written next to the status of a chip cell, if the cell has one. */
+export function chipTextOf(cell: Cell | undefined): string {
+  return typeof cell === 'object' && 'status' in cell ? (cell.text ?? '') : '';
+}

@@ -2,17 +2,19 @@ import { c, g } from '../../model/diagramKit';
 import type { DiagramDef } from '../../model/types';
 
 /**
- * G01: who builds what. Ownership is a text suffix in the group titles, never a colour; the
- * colour channel is reserved for status. The editor node reads its status from `FEATURES`.
+ * G01: the planned split between the two PPS, not the authorship of what is built (the caption
+ * says where the history differs). Ownership is a text suffix in the group titles, never a
+ * colour; the colour channel is reserved for status. The editor node reads its status from
+ * `FEATURES`.
  */
 export const repartoPps: DiagramDef = {
   id: 'reparto-pps',
   kind: 'flowchart',
-  title: 'Quién hace qué',
+  title: 'Reparto previsto',
   summary:
-    'Diagrama de flujo de izquierda a derecha con tres grupos. La PPS 1 (Gino Tombesi) tiene el visor y las teselas, la interfaz y las pantallas, y la pasarela con el despliegue. La PPS 2 (Nahuel Villegas) tiene la API y la autorización, la base de datos, el ciclo de vida de las anotaciones y la importación y exportación. El contrato es compartido. El editor en el navegador aparece punteado y sin dueño confirmado, unido al visor, a la interfaz y a las anotaciones.',
+    'Diagrama de flujo de izquierda a derecha con tres grupos: el reparto previsto en el documento de arquitectura, no la autoría de lo construido. La PPS 1 (Gino Tombesi) tiene el visor y las teselas, la interfaz y las pantallas, y la pasarela con el despliegue. La PPS 2 (Nahuel Villegas) tiene la API y la autorización, la base de datos, el ciclo de vida de las anotaciones y la importación y exportación. El contrato es compartido. El editor en el navegador aparece con borde discontinuo y sin dueño confirmado, unido al visor, a la interfaz y a las anotaciones.',
   caption:
-    'Reparto según el documento de arquitectura. El reparto del editor es una propuesta (ADR-08) que la supervisión no respondió.',
+    'Reparto previsto en el documento de arquitectura (sección 5.3), no la autoría de lo construido. El reparto del editor es una propuesta (ADR-08) pendiente de decisión de la supervisión.',
   source: `flowchart LR
   subgraph P1["PPS 1 · Gino Tombesi"]
     V["${g('done')} Visor y teselas"]${c('done')}
@@ -31,7 +33,7 @@ export const repartoPps: DiagramDef = {
   E["${g('editor')} Editor en el navegador"]${c('editor')}
   S -->|"HTTP y contrato"| A
   A --> D
-  E -.->|"ADR-08 propuesto, S1 sin respuesta"| V
+  E -.->|"ADR-08 propuesto, S1 pendiente"| V
   E -.-> S
   E -.-> N`,
   usesStatus: true,
@@ -44,6 +46,16 @@ export const repartoPps: DiagramDef = {
       note: 'S1: reparto del editor',
     },
     { kind: 'contract', ref: 'contract/openapi/api.v1.yaml:4', note: 'Versión 0.2.0 del contrato' },
+    {
+      kind: 'git',
+      ref: 'git:871f574',
+      note: 'Autorización por proyecto de la API, 01/11/2026',
+    },
+    {
+      kind: 'git',
+      ref: 'git:194309b',
+      note: 'Pantalla de ingreso y catálogo, 24/10/2026',
+    },
   ],
   priority: 'P1',
 };

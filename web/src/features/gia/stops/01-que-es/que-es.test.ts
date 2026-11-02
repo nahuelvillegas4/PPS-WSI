@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { ADRS } from '../../data/adrs';
+import { parseAdrIndex } from '../../drift/checks';
+import { findRepoText, readRepoFile } from '../../drift/repoFiles.testing';
+import { statusStyles } from '../../engine/withStatusStyles';
 import { FACTS } from '../../model/facts';
 import { FEATURES } from '../../model/features';
 import { SNAPSHOT, STATUS_META } from '../../model/status';
@@ -18,14 +22,17 @@ function find<K extends Block['kind']>(
 }
 
 describe('stop 1: structure', () => {
-  it('is the cover with the headline of the design and a Quién hace qué tab', () => {
+  it('is the cover with a headline that claims no editor, and a Reparto previsto tab', () => {
     expect(section.id).toBe('que-es');
     expect(section.group).toBe('recorrido');
     expect(section.headline).toBe(
-      'GIA es un visor y anotador web de imágenes médicas gigantes, con permisos por proyecto.',
+      'GIA es un visor web de imágenes médicas gigantes; hoy se anota solo por la API.',
     );
     expect(section.headline.length).toBeLessThanOrEqual(90);
-    expect(section.tabs.map((tab) => tab.id)).toEqual(['resumen', 'quien-hace-que']);
+    // The headline may not say the browser annotates while the editor is a planned item.
+    expect(FEATURES.editor.status).not.toBe('done');
+    expect(section.headline).not.toMatch(/anotador/);
+    expect(section.tabs.map((tab) => tab.id)).toEqual(['resumen', 'reparto-previsto']);
     expect(section.tabs[1]?.blocks).toEqual([{ kind: 'diagram', id: 'reparto-pps' }]);
     expect(content.diagrams.map((diagram) => diagram.id)).toEqual(['reparto-pps']);
     expect(content.tables).toEqual([]);
@@ -35,8 +42,29 @@ describe('stop 1: structure', () => {
     expect(section.notes.length).toBeGreaterThanOrEqual(2);
     expect(section.notes.length).toBeLessThanOrEqual(4);
     expect(section.notes[0]).toBe(
-      'El servidor está completo; lo que falta es el editor en el navegador.',
+      `La API y las teselas implementan las ${String(FACTS.operations + FACTS.tileOperations)} operaciones del contrato; en el navegador faltan el editor y tres pantallas.`,
     );
+  });
+
+  it('does not call the server complete, and names what is still only proposed', () => {
+    const notes = section.notes.join(' ');
+    expect(notes).not.toMatch(/servidor está completo/);
+    expect(notes).toContain('ADR-16');
+    expect(notes).toContain('YOLO');
+    expect(notes).toContain('pruebas por HTTP');
+    // "tres pantallas" and the break of the flow at the classes hold while these stay planned.
+    for (const id of [
+      'editor',
+      'classesScreen',
+      'importScreen',
+      'exportScreen',
+      'sessionValidator',
+      'csrfGuard',
+      'yolo',
+      'httpTests',
+    ] as const) {
+      expect(FEATURES[id].status, id).not.toBe('done');
+    }
   });
 });
 
@@ -64,6 +92,13 @@ describe('stop 1: cover', () => {
     expect(purpose?.text).toContain('no entrena ni ejecuta modelos');
   });
 
+  it('says that annotating is only possible through the API and that the project roles are proposed', () => {
+    const purpose = callouts.find((item) => item.title === 'Para qué sirve');
+    expect(purpose?.text).toContain('por la API, anotarlas; el editor en el navegador falta');
+    expect(purpose?.text).toContain('los ADR-15 y ADR-16 son propuestas sin aprobación registrada');
+    expect(purpose?.text).not.toMatch(/ver y anotar/);
+  });
+
   it('shows the six figures from FACTS, in the order of the design', () => {
     const [stats] = find(blocks, 'stats');
     expect(stats?.items.map((item) => [item.value, item.label])).toEqual([
@@ -71,9 +106,21 @@ describe('stop 1: cover', () => {
       [String(FACTS.tileOperations), 'operaciones de teselas'],
       [String(FACTS.tables), 'tablas'],
       [String(FACTS.screens), 'pantallas'],
-      [String(FACTS.adrs), 'decisiones (ADR)'],
-      [String(FACTS.requirements), 'requisitos de las dos PPS'],
+      [String(FACTS.adrs), 'ADR (10 decididos, 7 propuestos)'],
+      [String(FACTS.requirements), 'requisitos (desglose propio de los enunciados)'],
     ]);
+  });
+
+  it('splits the ADRs as docs/adr/README.md does, and the split adds up to the total', async () => {
+    const index = parseAdrIndex(await readRepoFile('docs/adr/README.md'));
+    const decided = [...index.values()].filter((decision) => decision === 'DECIDIDO').length;
+    const proposed = [...index.values()].filter((decision) => decision === 'PROPUESTO').length;
+    expect(decided + proposed).toBe(FACTS.adrs);
+    expect(ADRS.filter((adr) => adr.decision === 'DECIDIDO')).toHaveLength(decided);
+    const [stats] = find(blocks, 'stats');
+    expect(stats?.items.map((item) => item.label)).toContain(
+      `ADR (${String(decided)} decididos, ${String(proposed)} propuestos)`,
+    );
   });
 
   it('introduces the flow, then the stepper, then the legend, in that order', () => {
@@ -91,6 +138,31 @@ describe('stop 1: cover', () => {
     for (const meta of Object.values(STATUS_META)) {
       expect(legend?.text).toContain(`${meta.glyph} ${meta.label}`);
     }
+  });
+
+  it('describes the outlines as the diagrams draw them: partial is solid, planned is dashed', () => {
+    const styles = statusStyles({
+      bg: '#112233',
+      surface: '#445566',
+      text: '#778899',
+      muted: '#aabbcc',
+      border: '#ddeeff',
+      accent: '#13579b',
+      warning: '#2468ac',
+      dark: false,
+    });
+    expect(styles.done.dash).toBeUndefined();
+    expect(styles.partial.dash).toBeUndefined();
+    expect(styles.planned.dash).toBeDefined();
+    expect(styles.unknown.dash).toBeDefined();
+    expect(styles.unknown.dash).not.toBe(styles.planned.dash);
+    const legend = find(blocks, 'callout').find((item) => item.title === 'Cómo leer el estado');
+    expect(legend?.text).toContain(
+      'el borde continuo marca lo construido y lo construido en parte',
+    );
+    expect(legend?.text).toContain('el borde discontinuo, lo planificado');
+    expect(legend?.text).toContain('el de puntos, lo sin decidir');
+    expect(legend?.text).not.toContain('lo que falta');
   });
 });
 
@@ -136,13 +208,51 @@ describe('stop 1: the flow stepper', () => {
 });
 
 describe('stop 1: out of scope', () => {
-  it('lists it in the detail, hidden in presentation mode, as documented extensions', () => {
-    const detail = section.detail ?? [];
-    const [list] = find(detail, 'list');
-    expect(list?.items.length).toBeGreaterThanOrEqual(6);
-    const [intro] = find(detail, 'callout');
-    expect(intro?.text).toContain('nada de esto está construido');
+  const detail = section.detail ?? [];
+  const [list] = find(detail, 'list');
+  const [intro] = find(detail, 'callout');
+
+  it('lists it in the detail, hidden in presentation mode, and says nothing of it is built', () => {
+    expect(list?.items).toHaveLength(8);
+    expect(intro?.text).toContain('Nada de esto está construido');
   });
+
+  it('marks five items with an extension point and the others as only named', () => {
+    const items = list?.items ?? [];
+    expect(items.filter((item) => item.includes('punto de extensión'))).toHaveLength(5);
+    expect(items.filter((item) => item.includes('solo nombrado'))).toHaveLength(2);
+    const collaborative = items.find((item) => item.startsWith('Edición colaborativa'));
+    expect(collaborative).toContain('solo en el enunciado de la PPS 2');
+    expect(intro?.text).toContain('la edición colaborativa, solo el de la PPS 2');
+    expect(intro?.text).toContain('para cinco de los ocho');
+    expect(intro?.text).toContain('los otros tres no lo tienen');
+  });
+
+  it('matches the architecture document: section 5.4 has those five hooks and no more', async () => {
+    const doc = await readRepoFile('docs/arquitectura/03-bloques-y-ejecucion.md');
+    const start = doc.indexOf('### 5.4 Puntos de extensión');
+    expect(start).toBeGreaterThan(-1);
+    const table = doc.slice(start, doc.indexOf('\n## ', start));
+    for (const hook of [
+      'DICOM WSI',
+      'Preanotaciones',
+      'Active learning',
+      'Consenso y métricas de acuerdo',
+      'Nuevos formatos',
+    ]) {
+      expect(table, hook).toContain(hook);
+    }
+    // If a hook is ever added for one of the other three, the page has to say so.
+    expect(table).not.toMatch(/colaborativ|dashboard|paneles|versionado de datasets/i);
+  }, 30_000);
+
+  it('finds the collaborative editing in no document of the repository', async () => {
+    const hits = await findRepoText({
+      in: ['docs/**', 'contract/**', 'deploy/**', 'README.md'],
+      pattern: 'colaborativ',
+    });
+    expect(hits).toEqual([]);
+  }, 30_000);
 });
 
 describe('diagram G01 reparto-pps', () => {
@@ -162,7 +272,7 @@ describe('diagram G01 reparto-pps', () => {
     expect(editorLine).toContain(STATUS_META[FEATURES.editor.status].glyph);
     const dashed = source.split('\n').filter((line) => line.includes('-.->'));
     expect(dashed).toHaveLength(3);
-    expect(dashed[0]).toContain('ADR-08 propuesto, S1 sin respuesta');
+    expect(dashed[0]).toContain('ADR-08 propuesto, S1 pendiente');
   });
 
   it('keeps within the budget of 14 nodes and writes no styles by hand', () => {
@@ -173,5 +283,13 @@ describe('diagram G01 reparto-pps', () => {
 
   it('never mentions a port number', () => {
     expect(source).not.toMatch(/:\d{4}/);
+  });
+
+  it('is a planned split, not the authorship, and does not say the supervision failed to answer', () => {
+    expect(repartoPps.title).toBe('Reparto previsto');
+    expect(repartoPps.caption).toContain('no la autoría de lo construido');
+    expect(repartoPps.caption).toContain('pendiente de decisión de la supervisión');
+    const text = [repartoPps.caption, repartoPps.summary, source].join(' ');
+    expect(text).not.toMatch(/sin respuesta|no respondi/i);
   });
 });

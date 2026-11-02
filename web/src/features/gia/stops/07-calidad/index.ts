@@ -32,7 +32,7 @@ const notCovered: Block = {
     { title: 'Sin capa HTTP', body: FEATURES.httpTests.gap, chips: ['API'] },
     {
       title: 'Sin PostgreSQL real',
-      body: 'La suite de la API usa SQLite en lugar de PostgreSQL; la migración y su reversa solo se ensayaron a mano en una base descartable.',
+      body: 'La suite de la API usa SQLite en lugar de PostgreSQL; la migración y su reversa se ensayaron aparte, en una base descartable (registro local, no versionado).',
       chips: ['API'],
     },
     {
@@ -42,7 +42,7 @@ const notCovered: Block = {
     },
     {
       title: 'Sin un SVS real',
-      body: 'Las pruebas de teselas usan imágenes PNG y JPG sintéticas; los SVS reales se verificaron con el script de medición y a mano.',
+      body: 'Las pruebas de teselas usan imágenes PNG y JPG sintéticas; los SVS reales solo se usaron en el script de medición y en las verificaciones asistidas del 01/11.',
       chips: ['Teselas'],
     },
     { title: 'Sin integración continua', body: FEATURES.ci.gap, chips: ['Todas'] },
@@ -86,7 +86,7 @@ export const content: StopContent = {
     notes: [
       'Cada número lleva fecha, método y límites.',
       `${formatNumber(MEASURED.apiTestCases.value)} es la cantidad de casos ejecutados; los ${formatNumber(MEASURED.apiTestMethods.value)} métodos son las declaraciones, porque un método con datos corre varias veces.`,
-      'Las pruebas de la API usan SQLite y no atraviesan HTTP: lo propio de PostgreSQL se verificó a mano.',
+      'Las pruebas de la API usan SQLite y no atraviesan HTTP: lo propio de PostgreSQL se ensayó aparte, sin registro en el repositorio.',
       `La matriz de ${FACTS.operations} operaciones del contrato es la fuente única de tres verificadores.`,
     ],
   },

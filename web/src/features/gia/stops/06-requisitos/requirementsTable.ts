@@ -19,11 +19,14 @@ function totalsCell(rows: readonly Requirement[]): Cell {
   };
 }
 
-/** Annex A2: one row per requirement of the two statements, filterable by PPS and by state. */
+/**
+ * Annex A2: one row per requirement of the two statements. Only the state column is filterable
+ * (status chips); a single PPS is found with the text search, by typing "P1-" or "P2-".
+ */
 export const requisitosTable: TableDef = {
   id: 'requisitos',
   title: 'Requisitos de las dos PPS',
-  caption: `Estado verificado contra el código al ${SNAPSHOT.label} (commit ${SNAPSHOT.commit}). Planificado: solo existe en los documentos. Sin empezar: no hay código ni plan operativo.`,
+  caption: `Estado verificado contra el código al ${SNAPSHOT.label} (commit ${SNAPSHOT.commit}). Los ${String(REQUIREMENTS.length)} requisitos son el desglose que hizo el equipo de los enunciados, que no los numeran así. Planificado: solo existe en los documentos. Sin empezar: no hay código ni plan operativo. Una pantalla de gestión que falta cuenta contra la PPS 1, que entrega el flujo en el navegador; la PPS 2 se mide por su módulo, la API; el editor cuenta contra las dos. El botón «Planificado» incluye lo sin empezar. Para una sola PPS, buscar «P1-» o «P2-».`,
   columns: [
     { key: 'id', label: 'ID' },
     { key: 'pps', label: 'PPS', align: 'center' },

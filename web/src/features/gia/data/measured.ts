@@ -9,13 +9,20 @@ import type { Measured } from '../model/status';
  * Rules kept by `stops/07-calidad/measured.test.ts`:
  * - no figure per person and no hours (individual evaluation data stays out of the bundle);
  * - an entry measured on the snapshot date carries the SNAPSHOT commit, so bumping `SNAPSHOT`
- *   without re-measuring fails a test instead of silently re-dating old numbers.
+ *   without re-measuring fails a test instead of silently re-dating old numbers;
+ * - an execution that was not repeated on the snapshot keeps its own date and commit (see `at`),
+ *   and its method says what the repository shows about the code since then.
  *
  * To refresh: export the new commit, repeat each `method`, and update value, `asOf` and `commit`.
  */
 
 const SNAPSHOT_DATE = '2026-11-02';
 const SNAPSHOT_COMMIT = '2584cfc';
+
+/** Last commit that touched `api/`; the API suite was run on 01/11 and the code is the same. */
+const API_RUN_COMMIT = '871f574';
+/** Last commit that touched `tiles/`; the last recorded run of its suite was on 17/10. */
+const TILES_RUN_COMMIT = 'dc5f93c';
 
 const LINES = {
   apiSource: 8349,
@@ -40,6 +47,17 @@ function atSnapshot(value: number, method: string, caveat?: string): NumericMeas
     method,
     ...(caveat === undefined ? {} : { caveat }),
   };
+}
+
+/** Entry whose execution is older than the snapshot: it keeps the date and commit of that run. */
+function at(
+  asOf: string,
+  commit: string,
+  value: number,
+  method: string,
+  caveat?: string,
+): NumericMeasured {
+  return { value, asOf, commit, method, ...(caveat === undefined ? {} : { caveat }) };
 }
 
 const GIT_FILES = 'Archivos versionados contados con git sobre 2584cfc';
@@ -96,19 +114,23 @@ export const MEASURED = {
     'Conteo de [Fact] (121) y [Theory] (31) en api/tests con git grep sobre 2584cfc',
     'Son declaraciones, no casos: un [Theory] corre una vez por fila de datos.',
   ),
-  apiTestCases: atSnapshot(
+  apiTestCases: at(
+    '2026-11-01',
+    API_RUN_COMMIT,
     292,
-    'Ejecución del binario de pruebas compilado el 01/11/2026 en contenedor; los nombres de las pruebas son idénticos a los de 2584cfc',
+    `Corrida de las pruebas de la API en contenedor el 01/11/2026, registrada en el diario local del equipo (no versionado); el código de la API no cambió desde ${API_RUN_COMMIT} hasta ${SNAPSHOT_COMMIT}`,
     'Las pruebas de la API corren sobre SQLite y no atraviesan la capa HTTP.',
   ),
   webTestCases: atSnapshot(
     284,
     'npm test (Vitest) sobre una copia exportada de 2584cfc: 284 de 284 casos en 17 archivos',
-    'Solo lógica pura: no hay pruebas de componentes ni de navegador.',
+    'Solo lógica pura: no hay pruebas de componentes ni de navegador. No incluye las pruebas de esta guía, agregadas después: npm test hoy da otra cifra.',
   ),
-  tilesTestFunctions: atSnapshot(
+  tilesTestFunctions: at(
+    '2026-10-17',
+    TILES_RUN_COMMIT,
     24,
-    'Conteo de funciones test_ en tiles/tests con git grep sobre 2584cfc (sin parametrize: una función, un caso); resultado 24 de 24 según la corrida del equipo',
+    `Conteo de funciones test_ en tiles/tests (sin parametrize: una función, un caso) y última corrida registrada, 24 de 24, el 17/10/2026 en el diario local del equipo (no versionado); tiles/ no cambió desde ${TILES_RUN_COMMIT} hasta ${SNAPSHOT_COMMIT}`,
     'Solo imágenes PNG y JPG sintéticas.',
   ),
 

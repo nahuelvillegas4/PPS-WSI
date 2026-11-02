@@ -3,7 +3,9 @@ import { REQUIREMENTS } from '../../data/requirements';
 import { readRepoFile, repoPathExists } from '../../drift/repoFiles.testing';
 import { FACTS } from '../../model/facts';
 import type { GapTheme } from '../../model/types';
+import { EMPTY_FILTER, filterRows } from '../../render/tableFilter';
 import { THEME_ORDER, ofPps, stateCounts } from './derive';
+import { requisitosTable } from './requirementsTable';
 
 interface EvidenceRef {
   path: string;
@@ -58,28 +60,91 @@ describe('REQUIREMENTS', () => {
     expect(ofPps(REQUIREMENTS, 2)).toHaveLength(40);
   });
 
-  it('counts 39 built, 35 partial, 1 planned and 4 not started', () => {
+  it('counts 37 built, 39 partial, 1 planned and 2 not started', () => {
     expect(stateCounts(REQUIREMENTS)).toEqual({
-      implemented: 39,
-      partial: 35,
+      implemented: 37,
+      partial: 39,
       planned: 1,
-      notStarted: 4,
+      notStarted: 2,
     });
   });
 
-  it('counts 17 / 19 / 1 / 2 for PPS 1 and 22 / 16 / 0 / 2 for PPS 2', () => {
+  it('counts 16 / 21 / 1 / 1 for PPS 1 and 21 / 18 / 0 / 1 for PPS 2', () => {
     expect(stateCounts(ofPps(REQUIREMENTS, 1))).toEqual({
-      implemented: 17,
-      partial: 19,
+      implemented: 16,
+      partial: 21,
       planned: 1,
-      notStarted: 2,
+      notStarted: 1,
     });
     expect(stateCounts(ofPps(REQUIREMENTS, 2))).toEqual({
-      implemented: 22,
-      partial: 16,
+      implemented: 21,
+      partial: 18,
       planned: 0,
-      notStarted: 2,
+      notStarted: 1,
     });
+  });
+
+  it('keeps as not started only what has neither code nor an operative plan: the final report', () => {
+    const notStarted = REQUIREMENTS.filter((row) => row.state === 'not-started').map(
+      (row) => row.id,
+    );
+    expect(notStarted).toEqual(['P1-9.8', 'P2-8.9']);
+    expect(REQUIREMENTS.filter((row) => row.state === 'planned').map((row) => row.id)).toEqual([
+      'P1-8.5',
+    ]);
+  });
+
+  it('shows the annotation persistence that exists in the API as partial, never as not started', async () => {
+    const byId = new Map(REQUIREMENTS.map((row) => [row.id, row]));
+    for (const id of ['P1-3.4', 'P1-7.5', 'P2-4.3', 'P2-6.5']) {
+      expect(byId.get(id)?.state, id).toBe('partial');
+    }
+    const controller = await readRepoFile(
+      'api/src/Pps.Api/Controllers/Annotations/AnnotationsController.cs',
+    );
+    expect(controller).toMatch(/\[HttpPost/);
+    expect(controller).toMatch(/\[HttpPatch/);
+  }, 30_000);
+
+  it('applies one rule to the screens: a missing management screen counts against PPS 1 only', () => {
+    const screens = REQUIREMENTS.filter((row) => row.theme === 'pantallas');
+    expect(screens.map((row) => row.id)).toEqual([
+      'P1-3.1',
+      'P1-3.2',
+      'P1-3.7',
+      'P1-7.3',
+      'P1-7.7',
+      'P1-8.4',
+    ]);
+    expect(screens.every((row) => row.pps === 1)).toBe(true);
+    // The same capability in the module of PPS 2 is graded on the API.
+    const byId = new Map(REQUIREMENTS.map((row) => [row.id, row]));
+    expect(byId.get('P2-3.8')?.state).toBe('implemented');
+    expect(byId.get('P2-3.7')?.theme).toBe('datos-de-prueba');
+    expect(requisitosTable.caption).toContain('cuenta contra la PPS 1');
+  });
+
+  it('does not call the pruebas reproducibles of the API implemented while its command is undocumented', async () => {
+    const api = await readRepoFile('api/README.md');
+    expect(api).not.toMatch(/dotnet test/);
+    expect(REQUIREMENTS.find((row) => row.id === 'P2-8.8')?.state).toBe('partial');
+    for (const readme of ['web/README.md', 'tiles/README.md']) {
+      expect(await readRepoFile(readme), readme).toMatch(/npm test|pytest/);
+    }
+    expect(REQUIREMENTS.find((row) => row.id === 'P1-9.7')?.evidence).toBe('web/README.md');
+  }, 30_000);
+
+  it('says in annex A2 that the 79 rows are the team breakdown and how to see one PPS', () => {
+    expect(requisitosTable.caption).toContain(
+      `Los ${String(REQUIREMENTS.length)} requisitos son el desglose que hizo el equipo`,
+    );
+    expect(requisitosTable.caption).toContain('«P1-» o «P2-»');
+    const found = (text: string) => filterRows(requisitosTable, { ...EMPTY_FILTER, text });
+    expect(found('p1-')).toHaveLength(ofPps(REQUIREMENTS, 1).length);
+    expect(found('p2-')).toHaveLength(ofPps(REQUIREMENTS, 2).length);
+    // Only the state column is a status filter; the PPS column is not claimed to be one.
+    const filterable = requisitosTable.columns.filter((column) => column.filterable === true);
+    expect(filterable.map((column) => column.key)).toEqual(['state']);
   });
 
   it('keeps the numbering of the statements, with unique ids prefixed by their PPS', () => {
@@ -122,5 +187,5 @@ describe('REQUIREMENTS', () => {
       const says = LINE_SAYS[row.id];
       expect(lines[from - 1], `${row.id}: ${row.evidence}`).toMatch(says ?? /^$/);
     }
-  });
+  }, 30_000);
 });

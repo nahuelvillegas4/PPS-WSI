@@ -1,3 +1,4 @@
+import { ADRS } from '../../data/adrs';
 import { FACTS } from '../../model/facts';
 import { SNAPSHOT, STATUS_META, type Status } from '../../model/status';
 import type { Block, StopContent } from '../../model/types';
@@ -28,8 +29,11 @@ const purpose: Block = {
   kind: 'callout',
   tone: 'info',
   title: 'Para qué sirve',
-  text: 'GIA es una herramienta web para ver y anotar imágenes de patología digital de gran tamaño (WSI). Las anotaciones son rectángulos y polígonos que conservan clase, autor y fecha, y se exportan para entrenar modelos; GIA no entrena ni ejecuta modelos. Cada persona ve y anota según su rol en cada proyecto.',
+  text: 'GIA es una herramienta web para ver imágenes de patología digital de gran tamaño (WSI) y, por la API, anotarlas; el editor en el navegador falta. Las anotaciones son rectángulos y polígonos que conservan clase, autor y fecha, y se exportan para entrenar modelos; GIA no entrena ni ejecuta modelos. Los permisos por proyecto ya están en la rama main, pero los ADR-15 y ADR-16 son propuestas sin aprobación registrada.',
 };
+
+const adrsDecided = ADRS.filter((adr) => adr.decision === 'DECIDIDO').length;
+const adrsProposed = ADRS.filter((adr) => adr.decision === 'PROPUESTO').length;
 
 const stats: Block = {
   kind: 'stats',
@@ -38,8 +42,11 @@ const stats: Block = {
     { value: String(FACTS.tileOperations), label: 'operaciones de teselas' },
     { value: String(FACTS.tables), label: 'tablas' },
     { value: String(FACTS.screens), label: 'pantallas' },
-    { value: String(FACTS.adrs), label: 'decisiones (ADR)' },
-    { value: String(FACTS.requirements), label: 'requisitos de las dos PPS' },
+    {
+      value: String(FACTS.adrs),
+      label: `ADR (${String(adrsDecided)} decididos, ${String(adrsProposed)} propuestos)`,
+    },
+    { value: String(FACTS.requirements), label: 'requisitos (desglose propio de los enunciados)' },
   ],
 };
 
@@ -55,28 +62,32 @@ const legend: Block = {
   kind: 'callout',
   tone: 'info',
   title: 'Cómo leer el estado',
-  text: `${legendLine}. En los diagramas, el borde continuo marca lo construido y el punteado, lo que falta.`,
+  text: `${legendLine}. En los diagramas, el borde continuo marca lo construido y lo construido en parte (lo parcial se distingue por el glifo ◐); el borde discontinuo, lo planificado, y el de puntos, lo sin decidir.`,
 };
 
-/** Out of scope in both statements: documented as extensions, none of it built. */
+/**
+ * Out of scope in the statements. The architecture document (section 5.4) gives an extension
+ * point for five of the eight; two of the other three are only named as out of scope and the
+ * collaborative editing is not even named in the repository. Nothing here is built.
+ */
 const outOfScope: readonly Block[] = [
   {
     kind: 'callout',
     tone: 'info',
     title: 'Fuera de alcance',
-    text: 'Los dos enunciados lo dejan fuera. Está documentado como extensión, con el lugar donde se enchufaría; nada de esto está construido.',
+    text: 'Los enunciados dejan todo esto fuera; la edición colaborativa, solo el de la PPS 2. La arquitectura (sección 5.4) da un punto de extensión para cinco de los ocho; los otros tres no lo tienen. Nada de esto está construido.',
   },
   {
     kind: 'list',
     items: [
-      'Consenso y adjudicación entre revisores, y métricas de acuerdo entre observadores',
-      'Edición colaborativa en tiempo real',
-      'DICOM WSI: se trabaja con una única familia de WSI (SVS)',
-      'Ejecución de modelos de inteligencia artificial y preanotaciones',
-      'Aprendizaje activo (active learning)',
-      'Paneles de control (dashboards)',
-      'Versionado integral de datasets',
-      'Formatos universales de intercambio',
+      'Consenso y adjudicación entre revisores, y métricas de acuerdo entre observadores · punto de extensión',
+      'Edición colaborativa en tiempo real · solo en el enunciado de la PPS 2; la documentación del repositorio no la menciona',
+      'DICOM WSI: se trabaja con una única familia de WSI (SVS) · punto de extensión',
+      'Ejecución de modelos de inteligencia artificial y preanotaciones · punto de extensión',
+      'Aprendizaje activo (active learning) · punto de extensión',
+      'Paneles de control (dashboards) · solo nombrado como fuera de alcance',
+      'Versionado integral de datasets · solo nombrado como fuera de alcance',
+      'Formatos universales de intercambio · punto de extensión (nuevos formatos)',
     ],
   },
 ];
@@ -86,8 +97,7 @@ export const content: StopContent = {
     id: 'que-es',
     group: 'recorrido',
     title: 'Qué es GIA',
-    headline:
-      'GIA es un visor y anotador web de imágenes médicas gigantes, con permisos por proyecto.',
+    headline: 'GIA es un visor web de imágenes médicas gigantes; hoy se anota solo por la API.',
     minutes: 1.5,
     tabs: [
       {
@@ -104,16 +114,16 @@ export const content: StopContent = {
         ],
       },
       {
-        id: 'quien-hace-que',
-        label: 'Quién hace qué',
+        id: 'reparto-previsto',
+        label: 'Reparto previsto',
         blocks: [{ kind: 'diagram', id: repartoPps.id }],
       },
     ],
     notes: [
-      'El servidor está completo; lo que falta es el editor en el navegador.',
-      'Servidor quiere decir la API y el servicio de teselas; el servidor del laboratorio es otra cosa y todavía no tiene fecha.',
-      'Señalar en el flujo el paso donde se corta, Anotar, y explicar la leyenda: el borde continuo es lo construido y el punteado, lo que falta.',
-      `Las cifras de la portada se cuentan del repositorio al ${SNAPSHOT.label}; no se escriben a mano.`,
+      `La API y las teselas implementan las ${String(FACTS.operations + FACTS.tileOperations)} operaciones del contrato; en el navegador faltan el editor y tres pantallas.`,
+      'Quedan propuestas de seguridad (ADR-16), YOLO y las pruebas por HTTP. El servidor del laboratorio es otra cosa: no tiene fecha ni acceso confirmados.',
+      'Señalar en el flujo dónde se corta en el navegador: primero en las clases (paso 2) y después en Anotar (paso 5). Explicar la leyenda: continuo, construido; discontinuo, planificado.',
+      'Las cifras de la portada están escritas una vez y una prueba las compara con el repositorio; el 79 es el desglose propio del anexo A2.',
     ],
     detail: outOfScope,
   },

@@ -4,6 +4,7 @@ import { FEATURES } from '../../model/features';
 import type { ReqState } from '../../model/status';
 import type { Block, GapTheme, Requirement } from '../../model/types';
 import {
+  PENDING_LABELS,
   REQ_STATE_LABEL,
   THEME_NOTE,
   THEME_ORDER,
@@ -58,16 +59,20 @@ describe('stateCounts', () => {
 describe('buildHeadline', () => {
   it('reads the numbers from the rows', () => {
     expect(buildHeadline(SAMPLE)).toBe(
-      'De 7 requisitos de las dos PPS: 2 cumplidos, 3 parciales y 2 pendientes.',
+      'De 7 requisitos (desglose propio): 2 cumplidos, 3 parciales y 2 pendientes.',
     );
   });
 
-  it('is the 39 / 35 / 5 headline of the walk-through for the real data, within 90 characters', () => {
+  it('is the 37 / 39 / 3 headline of the walk-through for the real data, within 90 characters', () => {
     const headline = buildHeadline(REQUIREMENTS);
     expect(headline).toBe(
-      'De 79 requisitos de las dos PPS: 39 cumplidos, 35 parciales y 5 pendientes.',
+      'De 79 requisitos (desglose propio): 37 cumplidos, 39 parciales y 3 pendientes.',
     );
     expect(headline.length).toBeLessThanOrEqual(90);
+  });
+
+  it('does not say the 79 are requirements numbered by the two statements', () => {
+    expect(buildHeadline(REQUIREMENTS)).not.toContain('de las dos PPS');
   });
 });
 
@@ -101,6 +106,13 @@ describe('buildWaffle', () => {
     const real = block(buildWaffle(REQUIREMENTS), 'waffle');
     expect(real.groups.map((group) => group.cells.length)).toEqual([39, 40]);
   });
+
+  it('names the planned squares "pendiente" in the captions, as the headline does', () => {
+    expect(waffle.statusLabels).toBe(PENDING_LABELS);
+    expect(PENDING_LABELS.planned).toEqual({ singular: 'pendiente', plural: 'pendientes' });
+    // Only the status that holds planned and not started requirements is renamed.
+    expect(Object.keys(PENDING_LABELS)).toEqual(['planned']);
+  });
 });
 
 describe('buildBars', () => {
@@ -124,12 +136,19 @@ describe('buildBars', () => {
     expect(bars.rows[1]?.segments.map((segment) => segment.status)).toEqual(['done', 'partial']);
   });
 
-  it('shows 17 / 19 / 3 for PPS 1 and 22 / 16 / 2 for PPS 2 with the real data', () => {
+  it('shows 16 / 21 / 2 for PPS 1 and 21 / 18 / 1 for PPS 2 with the real data', () => {
     const bars = block(buildBars(REQUIREMENTS), 'bars');
     const values = (index: number) => bars.rows[index]?.segments.map((segment) => segment.value);
-    expect(values(0)).toEqual([17, 19, 3]);
-    expect(values(1)).toEqual([22, 16, 2]);
-    expect(values(2)).toEqual([39, 35, 5]);
+    expect(values(0)).toEqual([16, 21, 2]);
+    expect(values(1)).toEqual([21, 18, 1]);
+    expect(values(2)).toEqual([37, 39, 3]);
+  });
+
+  it('names the planned segment "pendiente" like the waffle, so the bars agree with the headline', () => {
+    const bars = block(buildBars(REQUIREMENTS), 'bars');
+    expect(bars.statusLabels).toBe(PENDING_LABELS);
+    const total = bars.rows[2]?.segments.find((segment) => segment.status === 'planned');
+    expect(total?.value).toBe(pendingCount(stateCounts(REQUIREMENTS)));
   });
 });
 
@@ -161,27 +180,40 @@ describe('summarizeThemes and buildGapCards', () => {
     const cards = block(buildGapCards(SAMPLE), 'cards');
     const editor = cards.items[0];
     expect(editor?.title).toBe(THEME_TITLE.editor);
-    expect(editor?.body).toContain('3 requisitos abiertos (2 parciales, 1 pendientes).');
+    expect(editor?.body).toContain('3 requisitos abiertos (2 parciales, 1 pendiente).');
     expect(editor?.chips).toEqual(['P1-a', 'P1-c', 'P2-c']);
   });
 
-  it('marks a theme as planned only when none of its requirements exists in part', () => {
+  it('marks a theme as planned only when none of it exists in part and something is planned', () => {
     const cards = block(buildGapCards(SAMPLE), 'cards');
     const byTitle = new Map(cards.items.map((item) => [item.title, item.status]));
     expect(byTitle.get(THEME_TITLE.editor)).toBe('partial');
     expect(byTitle.get(THEME_TITLE.servidor)).toBe('planned');
   });
 
-  it('accounts for the 40 open requirements of the real data across eight themes', () => {
+  it('gives a theme whose requirements are all not started no state: nothing is planned there', () => {
+    const rows = [
+      req('P1-a', 1, 'not-started', 'informe'),
+      req('P2-a', 2, 'not-started', 'informe'),
+    ];
+    const [card] = block(buildGapCards(rows), 'cards').items;
+    expect(card?.status).toBeUndefined();
+    expect(card?.body).toContain('2 requisitos abiertos (0 parciales, 2 pendientes).');
+    const real = block(buildGapCards(REQUIREMENTS), 'cards');
+    const informe = real.items.find((item) => item.title === THEME_TITLE.informe);
+    expect(informe?.status).toBeUndefined();
+  });
+
+  it('accounts for the 42 open requirements of the real data across eight themes', () => {
     const summaries = summarizeThemes(REQUIREMENTS);
     expect(summaries).toHaveLength(8);
-    expect(summaries.reduce((sum, summary) => sum + summary.rows.length, 0)).toBe(40);
+    expect(summaries.reduce((sum, summary) => sum + summary.rows.length, 0)).toBe(42);
     expect(summaries.map((summary) => [summary.theme, summary.rows.length])).toEqual([
       ['editor', 15],
       ['pantallas', 6],
+      ['datos-de-prueba', 5],
+      ['documentacion', 5],
       ['servidor', 4],
-      ['datos-de-prueba', 4],
-      ['documentacion', 4],
       ['alcance', 3],
       ['ci-calidad', 2],
       ['informe', 2],
@@ -215,5 +247,9 @@ describe('theme notes', () => {
     expect(THEME_NOTE.pantallas).toContain('pantalla de clases');
     expect(THEME_NOTE.pantallas).toContain('pantalla de exportación');
     expect(THEME_NOTE.editor).toBe(FEATURES.editor.gap);
+  });
+
+  it('says the command of the API tests is undocumented, as the requirements rows do', () => {
+    expect(THEME_NOTE.documentacion).toContain('el comando de pruebas de la API');
   });
 });

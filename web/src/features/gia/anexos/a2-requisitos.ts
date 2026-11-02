@@ -17,7 +17,7 @@ export const content: StopContent = {
     ],
     notes: [
       'Cada requisito de las dos PPS con su estado y la evidencia en el repositorio.',
-      'Filtrar por PPS o por estado para ver solo lo que falta.',
+      'Los botones de estado filtran por estado (el de planificado incluye lo sin empezar); para una sola PPS, buscar «P1-» o «P2-».',
     ],
   },
   diagrams: [],

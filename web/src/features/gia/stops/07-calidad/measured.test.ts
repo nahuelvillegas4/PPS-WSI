@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MEASURED } from '../../data/measured';
+import { matchRepoGlob, readRepoFile } from '../../drift/repoFiles.testing';
 import { SNAPSHOT } from '../../model/status';
 import { content as metricas, metricasTable } from '../../anexos/a4-metricas';
 import { textOf } from './cells.testing';
@@ -65,6 +66,46 @@ describe('MEASURED', () => {
     expect(MEASURED.apiTestMethods.value).toBe(152);
     expect(MEASURED.apiTestMethods.caveat).toContain('un [Theory] corre una vez por fila de datos');
   });
+
+  it('counts the test declarations in the repository: 121 Fact and 31 Theory, 24 test functions of tiles', async () => {
+    let facts = 0;
+    let theories = 0;
+    for (const path of matchRepoGlob('api/tests/**/*.cs')) {
+      const text = await readRepoFile(path);
+      facts += text.match(/\[Fact\b/g)?.length ?? 0;
+      theories += text.match(/\[Theory\b/g)?.length ?? 0;
+    }
+    expect([facts, theories]).toEqual([121, 31]);
+    expect(facts + theories).toBe(MEASURED.apiTestMethods.value);
+    let functions = 0;
+    for (const path of matchRepoGlob('tiles/tests/**/*.py')) {
+      functions += (await readRepoFile(path)).match(/^\s*def test_/gm)?.length ?? 0;
+    }
+    expect(functions).toBe(MEASURED.tilesTestFunctions.value);
+  }, 30_000);
+
+  it('keeps the date and commit of each run: the API on 01/11, the web on the snapshot, tiles on 17/10', () => {
+    expect([MEASURED.apiTestCases.asOf, MEASURED.apiTestCases.commit]).toEqual([
+      '2026-11-01',
+      '871f574',
+    ]);
+    expect([MEASURED.webTestCases.asOf, MEASURED.webTestCases.commit]).toEqual([
+      SNAPSHOT.date,
+      SNAPSHOT.commit,
+    ]);
+    expect([MEASURED.tilesTestFunctions.asOf, MEASURED.tilesTestFunctions.commit]).toEqual([
+      '2026-10-17',
+      'dc5f93c',
+    ]);
+    // What the repository can say about the code since those runs is part of the method.
+    expect(MEASURED.apiTestCases.method).toContain('no cambió desde 871f574 hasta 2584cfc');
+    expect(MEASURED.tilesTestFunctions.method).toContain('no cambió desde dc5f93c hasta 2584cfc');
+    expect(MEASURED.tilesTestFunctions.method).not.toContain('corrida del equipo');
+  });
+
+  it('says that the web figure leaves out the tests of this guide', () => {
+    expect(MEASURED.webTestCases.caveat).toContain('No incluye las pruebas de esta guía');
+  });
 });
 
 describe('number and date formats', () => {
@@ -94,10 +135,15 @@ describe('number and date formats', () => {
 });
 
 describe('copy C4', () => {
-  it('is the execution record, verbatim, with the 152-method explanation', () => {
+  it('is the execution record with a date and a commit per suite and the 152-method explanation', () => {
     expect(executionRecord()).toBe(
-      'Ejecutado el 02/11/2026 sobre HEAD 2584cfc: API 292 casos (152 métodos; binario compilado el 01/11 en contenedor, nombres de pruebas idénticos a HEAD) · Web 284/284 · Tiles 24/24. Pruebas de API sobre SQLite, sin capa HTTP.',
+      'Cada suite, con su fecha: API 292 casos (152 métodos; corrida del 01/11 en contenedor; el código de la API no cambió desde 871f574) · Web 284/284 (02/11, copia exportada de 2584cfc, sin las pruebas de esta guía) · Tiles 24/24 (última corrida registrada el 17/10; el código no cambió desde entonces). Pruebas de API sobre SQLite, sin capa HTTP.',
     );
+  });
+
+  it('never says the suites ran on HEAD or all on the snapshot date', () => {
+    const text = executionRecord();
+    expect(text).not.toMatch(/HEAD|Ejecutado el/);
   });
 });
 
@@ -121,6 +167,38 @@ describe('table metricas (annex A4)', () => {
         /Medido el \d{2}\/\d{2}\/\d{4} · commit [0-9a-f]{7}\./,
       );
     }
+  });
+
+  it('stamps the API and the tiles with the date and commit of their own run', () => {
+    const how = (concept: string) =>
+      textOf(rows.find((row) => textOf(row.concept) === concept)?.how);
+    expect(how('Pruebas de la API: casos ejecutados')).toContain(
+      'Medido el 01/11/2026 · commit 871f574.',
+    );
+    expect(how('Pruebas de teselas: casos')).toContain('Medido el 17/10/2026 · commit dc5f93c.');
+    expect(how('Pruebas de la web: casos ejecutados')).toContain(
+      `Medido el 02/11/2026 · commit ${SNAPSHOT.commit}.`,
+    );
+  });
+
+  it('takes the tables of the model from the snapshot of the data context, not from the context file', () => {
+    const tables = rows.find((row) => textOf(row.concept) === 'Tablas');
+    expect(textOf(tables?.how)).toContain('AppDbContextModelSnapshot.cs');
+    expect(textOf(tables?.how)).not.toContain('contexto de datos');
+  });
+
+  it('tells that the web and repository figures predate this guide', () => {
+    const callout = metricas.section.tabs
+      .flatMap((tab) => tab.blocks)
+      .find((b) => b.kind === 'callout');
+    expect(callout?.kind === 'callout' ? callout.text : '').toContain(
+      `son del commit ${SNAPSHOT.commit}, anterior a esta guía`,
+    );
+  });
+
+  it('calls the 79 rows the team breakdown, not requirements of the statements', () => {
+    const row = rows.find((item) => textOf(item.concept).startsWith('Requisitos de las dos PPS'));
+    expect(textOf(row?.concept)).toContain('desglose propio');
   });
 
   it('is defined by the annex and shown once', () => {

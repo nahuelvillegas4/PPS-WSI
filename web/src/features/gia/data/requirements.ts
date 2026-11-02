@@ -12,6 +12,12 @@ import type { Requirement } from '../model/types';
  *   change in the same branch, so they carry no line number).
  * - `theme` says which gap an unfinished requirement belongs to; it is mandatory unless the
  *   requirement is `implemented`, and the "gaps by theme" cards of stop 6 are derived from it.
+ * - Grading rule, stated in annex A2: a management screen that is missing (classes, import,
+ *   export; theme `pantallas`) counts against PPS 1, which delivers the flow in the browser, and
+ *   never against PPS 2, which is graded on its module (the API). The editor counts against both.
+ *   `requirements.test.ts` pins this, so the totals cannot depend on an unstated rule.
+ * - The 79 rows are the team's own breakdown of the two statements (numbered sections, plan
+ *   rows, acceptance sentences and deliverables), not 79 numbered requirements of the PDFs.
  */
 export const REQUIREMENTS: readonly Requirement[] = [
   // PPS 1 ------------------------------------------------------------------------------------
@@ -175,9 +181,9 @@ export const REQUIREMENTS: readonly Requirement[] = [
   {
     id: 'P1-7.5',
     pps: 1,
-    text: 'Herramientas de anotación y persistencia',
-    state: 'not-started',
-    evidence: 'web/src/features/viewer/ViewerPage.tsx',
+    text: 'Herramientas de anotación y persistencia (la persistencia está en la API; las herramientas de dibujo no existen)',
+    state: 'partial',
+    evidence: 'api/src/Pps.Api/Controllers/Annotations/AnnotationsController.cs',
     theme: 'editor',
   },
   {
@@ -229,9 +235,10 @@ export const REQUIREMENTS: readonly Requirement[] = [
   {
     id: 'P1-8.4',
     pps: 1,
-    text: 'Aceptación: exportar el resultado',
-    state: 'implemented',
+    text: 'Aceptación: exportar el resultado (por la API; la interfaz no tiene pantalla de exportación)',
+    state: 'partial',
     evidence: 'api/src/Pps.Api/Controllers/IO/ExportController.cs',
+    theme: 'pantallas',
   },
   {
     id: 'P1-8.5',
@@ -292,7 +299,7 @@ export const REQUIREMENTS: readonly Requirement[] = [
     pps: 1,
     text: 'Entregable: pruebas mínimas automatizadas o un guion reproducible',
     state: 'implemented',
-    evidence: 'api/tests/Pps.Domain.Tests/AnnotationLifecycleAndConcurrencyTests.cs',
+    evidence: 'web/README.md',
   },
   {
     id: 'P1-9.8',
@@ -384,7 +391,7 @@ export const REQUIREMENTS: readonly Requirement[] = [
     text: 'Importar un subconjunto documentado de anotaciones existentes (CRIC o CCEDD)',
     state: 'partial',
     evidence: 'api/src/Pps.Infrastructure/Import/CricImporter.cs',
-    theme: 'pantallas',
+    theme: 'datos-de-prueba',
   },
   {
     id: 'P2-3.8',
@@ -418,8 +425,8 @@ export const REQUIREMENTS: readonly Requirement[] = [
   {
     id: 'P2-4.3',
     pps: 2,
-    text: 'La PPS 2 consume el contrato del visor para dibujar y persistir geometrías',
-    state: 'not-started',
+    text: 'La PPS 2 consume el contrato del visor para dibujar y persistir geometrías (la API persiste; el dibujo en el navegador no existe)',
+    state: 'partial',
     evidence: 'web/src/features/viewer/OsdImageViewer.ts:105',
     theme: 'editor',
   },
@@ -441,7 +448,7 @@ export const REQUIREMENTS: readonly Requirement[] = [
   {
     id: 'P2-5',
     pps: 2,
-    text: 'Fuera del alcance (consenso, edición colaborativa, DICOM WSI, IA, active learning y otros): documentarlo como extensión',
+    text: 'Fuera del alcance obligatorio (consenso, edición colaborativa, DICOM WSI, IA, active learning y otros): no construirlo',
     state: 'implemented',
     evidence: 'docs/arquitectura/01-introduccion-y-restricciones.md',
   },
@@ -590,9 +597,10 @@ export const REQUIREMENTS: readonly Requirement[] = [
   {
     id: 'P2-8.8',
     pps: 2,
-    text: 'Entregable: pruebas reproducibles',
-    state: 'implemented',
+    text: 'Entregable: pruebas reproducibles (la web y las teselas documentan su comando; la API no)',
+    state: 'partial',
     evidence: 'api/tests/Pps.Domain.Tests/AnnotationLifecycleAndConcurrencyTests.cs',
+    theme: 'documentacion',
   },
   {
     id: 'P2-8.9',
