@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { LoginPage } from '../features/auth/LoginPage';
 import type { CurrentUser } from '../features/auth/authApi';
 import { useSession } from '../features/auth/useSession';
@@ -6,7 +6,13 @@ import { CatalogPage } from '../features/catalog/CatalogPage';
 import { ProjectMembersPage } from '../features/members/ProjectMembersPage';
 import { UsersPage } from '../features/users/UsersPage';
 import { ViewerPage } from '../features/viewer/ViewerPage';
+import { assertNever } from '../shared/assertNever';
 import { navigate, useRoute } from '../shared/router';
+
+// The guide is the only screen with a heavy dependency (Mermaid), so it is its own chunk.
+const GiaPage = lazy(() =>
+  import('../features/gia/GiaPage').then((module) => ({ default: module.GiaPage })),
+);
 
 interface SignedInAppProps {
   user: CurrentUser;
@@ -18,9 +24,10 @@ function SignedInApp({ user, onSignOut }: SignedInAppProps) {
   const route = useRoute();
   const isGlobalAdmin = user.role === 'admin';
 
-  // The users screen is for the global admin; anyone else is sent back to the catalog. The API
-  // refuses the calls anyway: this only keeps a dead screen from showing.
-  const hidden = route.name === 'users' && !isGlobalAdmin;
+  // The users screen and the guide are for the global admin; anyone else is sent back to the
+  // catalog. The API refuses the users calls anyway: this only keeps a dead screen from showing.
+  // The guide is a static page, so for it this is the whole gate (it is not a server check).
+  const hidden = (route.name === 'users' || route.name === 'gia') && !isGlobalAdmin;
   useEffect(() => {
     if (hidden) navigate('/', { replace: true });
   }, [hidden]);
@@ -44,6 +51,18 @@ function SignedInApp({ user, onSignOut }: SignedInAppProps) {
     case 'users':
       if (!isGlobalAdmin) return null;
       return <UsersPage onBack={goToCatalog} />;
+    case 'gia':
+      if (!isGlobalAdmin) return null;
+      return (
+        <Suspense fallback={<p className="app-status">Cargando la guía…</p>}>
+          <GiaPage
+            onBack={goToCatalog}
+            onNavigate={(target) => {
+              navigate(target === 'users' ? '/admin/users' : '/');
+            }}
+          />
+        </Suspense>
+      );
     case 'catalog':
       return (
         <CatalogPage
@@ -60,6 +79,9 @@ function SignedInApp({ user, onSignOut }: SignedInAppProps) {
           onSignOut={onSignOut}
         />
       );
+    default:
+      // A route without a case above stops compiling, instead of rendering a blank page.
+      return assertNever(route);
   }
 }
 

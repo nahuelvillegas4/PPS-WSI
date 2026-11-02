@@ -5,7 +5,8 @@ export type Route =
   | { name: 'catalog'; projectId?: number; datasetId?: number }
   | { name: 'viewer'; imageId: number }
   | { name: 'members'; projectId: number }
-  | { name: 'users' };
+  | { name: 'users' }
+  | { name: 'gia' };
 
 /** A positive integer id as it appears in a path segment; anything else is not a route. */
 function parseId(segment: string | undefined): number | null {
@@ -33,6 +34,7 @@ export function parseRoute(pathname: string, _search: string): Route {
   if (segments.length === 2 && segments[0] === 'admin' && segments[1] === 'users') {
     return { name: 'users' };
   }
+  if (segments.length === 1 && segments[0] === 'gia') return { name: 'gia' };
   return { name: 'catalog' };
 }
 

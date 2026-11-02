@@ -41,11 +41,13 @@ Las pruebas de conversión reproducen los casos C1, C2 y C3 de [`contract/fixtur
 | `src/features/auth/authApi.ts`          | `login`, `logout`, `fetchCurrentUser` y mensajes de error del ingreso                                                                            |
 | `src/features/auth/useSession.ts`       | Estado de la sesión (consulta `/auth/me` al cargar)                                                                                              |
 | `src/features/auth/LoginPage.tsx`       | Pantalla de ingreso                                                                                                                              |
+| `src/features/gia/`                     | Guía del sistema en `/gia` (solo administrador global): diagramas, tablas y estado para presentar el proyecto; ver su [README](src/features/gia/README.md) |
 | `src/app/App.tsx`                       | Puerta de sesión y rutas mínimas: `/` y `/images/{id}`                                                                                                              |
 
 ## Decisiones y límites
 
 - **Sin CDN ni imágenes remotas.** Los botones de zoom son propios y OpenSeadragon no pide íconos; todo funciona sin Internet ([ADR-12](../docs/adr/0012-privacidad-y-datos-de-prueba.md)).
+- **Mermaid para los diagramas de `/gia`.** Versión exacta y empaquetada (no hay CDN), cargada con `import()` recién al abrir la guía; `jsdom` (solo desarrollo) valida la sintaxis de los diagramas en una única prueba. Ver el [README de la guía](src/features/gia/README.md).
 - **El clic simple no hace zoom.** Se reserva para las herramientas de anotación; el zoom es con la rueda, el doble clic o los botones.
 - **La URL del descriptor se arma por convención** (`/tiles/v1/images/{id}.dzi`). Cuando la API sirva `GET /api/v1/images/{id}`, se usará el `tileSourceUrl` que devuelve.
 - **Versiones.** `vitest` está en 5.0.5 y no en 5.0.2 (línea base §2.4): con `npm` 11.5.2, la 5.0.2 falla al instalarse con un error interno del resolutor. Es un cambio de parche (ADR-14).

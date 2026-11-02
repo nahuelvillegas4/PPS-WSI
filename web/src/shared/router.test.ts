@@ -10,6 +10,7 @@ describe('parseRoute', () => {
     ['/images/4096', { name: 'viewer', imageId: 4096 }],
     ['/projects/7/members', { name: 'members', projectId: 7 }],
     ['/admin/users', { name: 'users' }],
+    ['/gia', { name: 'gia' }],
   ])('maps %s to its route', (pathname, expected) => {
     expect(parseRoute(pathname, '')).toEqual(expected);
   });
@@ -37,6 +38,10 @@ describe('parseRoute', () => {
     '/admin/users/',
     '/admin/users/3',
     '/Images/1',
+    '/gia/',
+    '/GIA',
+    '/gia/x',
+    '/gia/1',
   ])('falls back to the catalog for %s', (pathname) => {
     expect(parseRoute(pathname, '')).toEqual(CATALOG);
   });
@@ -45,5 +50,6 @@ describe('parseRoute', () => {
     expect(parseRoute('/', '?project=2&dataset=3')).toEqual(CATALOG);
     expect(parseRoute('/images/5', '?project=2')).toEqual({ name: 'viewer', imageId: 5 });
     expect(parseRoute('/admin/users', '?x=1')).toEqual({ name: 'users' });
+    expect(parseRoute('/gia', '?x=1')).toEqual({ name: 'gia' });
   });
 });
