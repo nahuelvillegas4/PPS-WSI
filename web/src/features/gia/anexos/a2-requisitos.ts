@@ -1,6 +1,7 @@
 import type { StopContent } from '../model/types';
+import { requisitosTable } from '../stops/06-requisitos/requirementsTable';
 
-// Stub from unit U0: the owner unit of this annex replaces the section and fills the tables.
+/** Annex A2: the table behind the waffle of stop 6, one row per requirement. */
 export const content: StopContent = {
   section: {
     id: 'a2-requisitos',
@@ -9,13 +10,16 @@ export const content: StopContent = {
     headline: 'Referencia: cada requisito de las dos PPS con su estado y su evidencia.',
     tabs: [
       {
-        id: 'resumen',
-        label: 'Resumen',
-        blocks: [{ kind: 'callout', tone: 'info', text: 'Contenido en construcción.' }],
+        id: 'tabla',
+        label: 'Tabla',
+        blocks: [{ kind: 'table', id: requisitosTable.id }],
       },
     ],
-    notes: ['Contenido en construcción.', 'Contenido en construcción.'],
+    notes: [
+      'Cada requisito de las dos PPS con su estado y la evidencia en el repositorio.',
+      'Filtrar por PPS o por estado para ver solo lo que falta.',
+    ],
   },
   diagrams: [],
-  tables: [],
+  tables: [requisitosTable],
 };
