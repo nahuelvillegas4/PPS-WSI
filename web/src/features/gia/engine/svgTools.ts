@@ -47,3 +47,25 @@ export function describeRenderError(error: unknown): string {
   const message = text.trim();
   return message === '' ? 'Error desconocido al dibujar el diagrama.' : message;
 }
+
+/** Messages of a failed dynamic import or fetch, which differ by browser. */
+const LOAD_FAILURE =
+  /dynamically imported module|importing a module script failed|error loading dynamically|failed to fetch|networkerror|load failed|chunkloaderror/i;
+const URL_IN_TEXT = /\b(?:https?|file):\/\/\S+/gi;
+
+/**
+ * What the reader sees when a diagram cannot be drawn: Spanish for the failures a reader can act
+ * on (the library did not load, the draw took too long) and, for anything else, the message of
+ * the error without the addresses in it (an asset URL names a host and a port).
+ */
+export function renderErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.name === 'RenderTimeoutError') {
+    return 'El dibujo tardó demasiado en completarse. Vuelva a intentarlo.';
+  }
+  const message = describeRenderError(error);
+  if (LOAD_FAILURE.test(message)) {
+    return 'No se pudo cargar el módulo que dibuja los diagramas. Revise la conexión y vuelva a intentarlo.';
+  }
+  const cleaned = message.replace(URL_IN_TEXT, '').trim();
+  return cleaned === '' ? 'Error desconocido al dibujar el diagrama.' : cleaned;
+}

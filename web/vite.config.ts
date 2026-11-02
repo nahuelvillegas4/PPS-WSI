@@ -15,5 +15,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    // The drift tests of the guide read repository files and can pass 5 s when run in parallel.
+    testTimeout: 30_000,
   },
 });

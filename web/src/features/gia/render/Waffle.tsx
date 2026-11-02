@@ -1,15 +1,25 @@
 import { STATUS_META } from '../model/status';
 import type { Block } from '../model/types';
-import { countStatuses, summarizeCounts } from './chartMath';
+import { ChartLegend } from './ChartLegend';
+import { chartLegend, countStatuses, summarizeCounts } from './chartMath';
 
 type WaffleBlock = Extract<Block, { kind: 'waffle' }>;
 
+interface WaffleProps {
+  groups: WaffleBlock['groups'];
+  statusLabels?: WaffleBlock['statusLabels'];
+}
+
 /** One square per item, grouped; the square carries the status glyph and the item as tooltip. */
-export function Waffle({ groups }: { groups: WaffleBlock['groups'] }) {
+export function Waffle({ groups, statusLabels }: WaffleProps) {
+  const present = groups.flatMap((group) => group.cells.map((cell) => cell.status));
   return (
     <div className="gia-waffle">
       {groups.map((group) => {
-        const summary = summarizeCounts(countStatuses(group.cells.map((cell) => cell.status)));
+        const summary = summarizeCounts(
+          countStatuses(group.cells.map((cell) => cell.status)),
+          statusLabels,
+        );
         return (
           <figure key={group.label} className="gia-waffle-group">
             <figcaption className="gia-waffle-caption">
@@ -36,6 +46,7 @@ export function Waffle({ groups }: { groups: WaffleBlock['groups'] }) {
           </figure>
         );
       })}
+      <ChartLegend entries={chartLegend(present, statusLabels)} />
     </div>
   );
 }

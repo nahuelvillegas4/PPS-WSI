@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { createRenderQueue } from './renderQueue';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { RENDER_TIMEOUT_MS, RenderTimeoutError, createRenderQueue } from './renderQueue';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -89,5 +89,55 @@ describe('createRenderQueue', () => {
     await queue.cached('a:light', () => Promise.resolve(1));
     queue.clear();
     expect(queue.has('a:light')).toBe(false);
+  });
+});
+
+describe('createRenderQueue timeout', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('rejects a task that never settles and lets the ones behind it run', async () => {
+    vi.useFakeTimers();
+    const queue = createRenderQueue('gia-d', 1000);
+    const stuck = queue.enqueue(() => new Promise<string>(() => undefined));
+    const next = queue.enqueue(() => Promise.resolve('ok'));
+    const rejected = expect(stuck).rejects.toBeInstanceOf(RenderTimeoutError);
+    await vi.advanceTimersByTimeAsync(1000);
+    await rejected;
+    expect(await next).toBe('ok');
+  });
+
+  it('leaves a task that settles in time alone and clears its timer', async () => {
+    vi.useFakeTimers();
+    const queue = createRenderQueue('gia-d', 1000);
+    const first = deferred<string>();
+    const run = queue.enqueue(() => first.promise);
+    await vi.advanceTimersByTimeAsync(900);
+    first.resolve('done');
+    expect(await run).toBe('done');
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('keeps the original error of a task that fails before the limit', async () => {
+    vi.useFakeTimers();
+    const queue = createRenderQueue('gia-d', 1000);
+    await expect(queue.enqueue(() => Promise.reject(new Error('boom')))).rejects.toThrow('boom');
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('does not cache a timeout, so the next call tries again', async () => {
+    vi.useFakeTimers();
+    const queue = createRenderQueue('gia-d', 1000);
+    const stuck = queue.cached('g:light', () => new Promise<string>(() => undefined));
+    const rejected = expect(stuck).rejects.toBeInstanceOf(RenderTimeoutError);
+    await vi.advanceTimersByTimeAsync(1000);
+    await rejected;
+    expect(queue.has('g:light')).toBe(false);
+    expect(await queue.cached('g:light', () => Promise.resolve('fine'))).toBe('fine');
+  });
+
+  it('gives a task 20 seconds by default', () => {
+    expect(RENDER_TIMEOUT_MS).toBe(20_000);
   });
 });

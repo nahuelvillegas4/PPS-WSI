@@ -2,7 +2,7 @@
  * Pure runner behind the "Verificar diagramas" button: draws every diagram one after another with
  * the function it is given and collects the failures. No network, no DOM of its own.
  */
-import { describeRenderError, inspectSvg } from './svgTools';
+import { inspectSvg, renderErrorMessage } from './svgTools';
 
 export interface VerifyFailure {
   id: string;
@@ -28,7 +28,7 @@ export async function verifyDiagrams(
       const problem = inspectSvg(await draw(id));
       if (problem) failures.push({ id, message: problem });
     } catch (error) {
-      failures.push({ id, message: describeRenderError(error) });
+      failures.push({ id, message: renderErrorMessage(error) });
     }
     done += 1;
     onProgress?.(done, ids.length);

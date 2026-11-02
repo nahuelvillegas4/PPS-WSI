@@ -1168,6 +1168,13 @@
   font-size: 0.9em;
 }
 
+.gia-help-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.95em;
+}
+
 .gia-help-actions {
   display: flex;
   justify-content: flex-end;

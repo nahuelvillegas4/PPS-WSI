@@ -5,7 +5,7 @@ import { SNAPSHOT } from './model/status';
 import { HelpDialog } from './nav/HelpDialog';
 import { SideToc } from './nav/SideToc';
 import { navScope, positionLabel, progressLabel, tocEntries } from './nav/sectionIndex';
-import { type NavAction, isMoveAction, resolveNavTarget } from './nav/sectionNav';
+import { type NavAction, isMoveAction, moveDestination } from './nav/sectionNav';
 import { isSnapshotStale, snapshotAgeDays } from './nav/snapshotAge';
 import { useActiveSection } from './nav/useActiveSection';
 import { scrollToAndHold } from './nav/scrollHold';
@@ -51,9 +51,12 @@ function prefersReducedMotion(): boolean {
  */
 export function GiaPage({ onBack, onNavigate }: GiaPageProps) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const presentButtonRef = useRef<HTMLButtonElement>(null);
+  const exitButtonRef = useRef<HTMLButtonElement>(null);
   const [present, setPresent] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [characterKeys, setCharacterKeys] = useState(true);
   const [tabBySection, setTabBySection] = useState<Readonly<Record<string, string>>>({});
   const { activeId, activate } = useActiveSection(SECTION_IDS);
   /** Ends the hold of the last jump, so only one jump steers the scroll at a time. */
@@ -96,11 +99,15 @@ export function GiaPage({ onBack, onNavigate }: GiaPageProps) {
     setTabBySection((current) => ({ ...current, [sectionId]: tabId }));
   }, []);
 
-  /** Runs a keyboard action; returns true when the key was used. */
+  /**
+   * Runs a keyboard action; returns true when the key was used. A move that would not change the
+   * stop (past the first or last one) is not used, so the key keeps its native paging.
+   */
   function handleAction(action: NavAction): boolean {
     if (isMoveAction(action)) {
-      const target = resolveNavTarget(navScope(SECTIONS, activeId), activeId, action);
-      if (target !== null && target !== activeId) goTo(target);
+      const target = moveDestination(navScope(SECTIONS, activeId), activeId, action);
+      if (target === null) return false;
+      goTo(target);
       return true;
     }
     switch (action) {
@@ -125,18 +132,25 @@ export function GiaPage({ onBack, onNavigate }: GiaPageProps) {
     }
   }
 
-  /** Switching mode changes every stop's height, so bring the active stop back to the top. */
+  /**
+   * Switching mode changes every stop's height, so bring the active stop back to the top. The
+   * button that was used disappears with its bar, so focus moves to its counterpart ("Salir"
+   * when entering, "Presentar" when leaving) once the new layout is in place.
+   */
   function togglePresent() {
-    setPresent((value) => !value);
+    const entering = !present;
+    setPresent(entering);
     window.requestAnimationFrame(() => {
       const target = document.getElementById(activeId);
-      if (target === null) return;
-      endHold.current?.();
-      endHold.current = scrollToAndHold(target, { smooth: false, maxMs: JUMP_HOLD_MS });
+      if (target !== null) {
+        endHold.current?.();
+        endHold.current = scrollToAndHold(target, { smooth: false, maxMs: JUMP_HOLD_MS });
+      }
+      (entering ? exitButtonRef : presentButtonRef).current?.focus({ preventScroll: true });
     });
   }
 
-  useGiaKeys(handleAction);
+  useGiaKeys(handleAction, { characterKeys });
 
   const stale = isSnapshotStale(SNAPSHOT.date, OPENED_AT);
   const progress = progressLabel(SECTIONS, activeId);
@@ -164,7 +178,7 @@ export function GiaPage({ onBack, onNavigate }: GiaPageProps) {
             >
               Notas
             </button>
-            <button type="button" onClick={togglePresent}>
+            <button ref={presentButtonRef} type="button" onClick={togglePresent}>
               Presentar
             </button>
             <button
@@ -228,7 +242,7 @@ export function GiaPage({ onBack, onNavigate }: GiaPageProps) {
             <span className="gia-progress" aria-live="polite">
               {progress}
             </span>
-            <button type="button" onClick={togglePresent}>
+            <button ref={exitButtonRef} type="button" onClick={togglePresent}>
               Salir
             </button>
           </div>
@@ -239,6 +253,8 @@ export function GiaPage({ onBack, onNavigate }: GiaPageProps) {
           onClose={() => {
             setHelpOpen(false);
           }}
+          characterKeys={characterKeys}
+          onCharacterKeysChange={setCharacterKeys}
         />
       </div>
     </NavigateContext.Provider>

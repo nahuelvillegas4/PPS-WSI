@@ -4,7 +4,7 @@ import type { DiagramDef } from '../model/types';
 import { DiagramViewer } from './DiagramViewer';
 import { siblingDiagramIds } from './diagramSiblings';
 import { StaleSchemeError, renderDiagram } from './renderDiagram';
-import { describeRenderError } from './svgTools';
+import { renderErrorMessage } from './svgTools';
 import { useColorScheme } from './useColorScheme';
 import './diagram.css';
 
@@ -20,8 +20,9 @@ interface Outcome {
 
 /**
  * A diagram of the guide: Mermaid draws it lazily, in the colours of the current scheme, and it
- * is drawn again when the scheme changes. A failure shows an error card with the source, never a
- * blank box. The sanitised SVG is injected from the effect, not during render.
+ * is drawn again when the scheme changes. A failure shows an error card with the source and a
+ * "Reintentar" button, never a blank box. The sanitised SVG is injected from the effect, not
+ * during render.
  */
 export function DiagramFigure({ id }: DiagramFigureProps) {
   const diagram = DIAGRAMS.get(id);
@@ -34,6 +35,9 @@ function Figure({ diagram }: { diagram: DiagramDef }) {
   const host = useRef<HTMLDivElement>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
+  /** Bumped by "Reintentar": it re-runs the draw effect, which asks the queue again. */
+  const [attempt, setAttempt] = useState(0);
+  const [retrying, setRetrying] = useState(false);
   const key = `${diagram.id}:${scheme}`;
 
   useEffect(() => {
@@ -43,17 +47,19 @@ function Figure({ diagram }: { diagram: DiagramDef }) {
         if (cancelled) return;
         if (host.current) host.current.innerHTML = rendered.svg;
         setOutcome({ key, error: null });
+        setRetrying(false);
       },
       (error: unknown) => {
         // A scheme change re-runs this effect, which draws again with the new palette.
         if (cancelled || error instanceof StaleSchemeError) return;
-        setOutcome({ key, error: describeRenderError(error) });
+        setOutcome({ key, error: renderErrorMessage(error) });
+        setRetrying(false);
       },
     );
     return () => {
       cancelled = true;
     };
-  }, [diagram, scheme, key]);
+  }, [diagram, scheme, key, attempt]);
 
   const settled = outcome?.key === key ? outcome : null;
   const error = settled?.error ?? null;
@@ -86,6 +92,18 @@ function Figure({ diagram }: { diagram: DiagramDef }) {
           <p>
             <strong>No se pudo dibujar este diagrama.</strong> {error}
           </p>
+          <button
+            type="button"
+            className="gia-diagram__retry"
+            aria-disabled={retrying}
+            onClick={() => {
+              if (retrying) return;
+              setRetrying(true);
+              setAttempt((count) => count + 1);
+            }}
+          >
+            {retrying ? 'Reintentando…' : 'Reintentar'}
+          </button>
           <pre>{diagram.source}</pre>
         </div>
       )}

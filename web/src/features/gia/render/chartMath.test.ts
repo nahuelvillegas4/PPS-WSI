@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { STATUS_META, type Status } from '../model/status';
+import type { StatusLabels } from '../model/types';
 import {
   barSegments,
   barTotal,
   buildQuadrantGrid,
+  chartLegend,
   countStatuses,
+  statusName,
+  statusNoun,
   summarizeCounts,
 } from './chartMath';
 import { STATUS_ORDER } from './statusOrder';
@@ -41,6 +45,67 @@ describe('summarizeCounts', () => {
 
   it('is empty when there is nothing to count', () => {
     expect(summarizeCounts({ done: 0, partial: 0, planned: 0, unknown: 0 })).toBe('');
+  });
+});
+
+describe('statusLabels override', () => {
+  const pending: StatusLabels = { planned: { singular: 'pendiente', plural: 'pendientes' } };
+
+  it('uses the default noun when there is no override or the status is not named in it', () => {
+    expect(statusNoun('planned', 3)).toBe('planificados');
+    expect(statusNoun('planned', 1, {})).toBe('planificado');
+    expect(statusNoun('done', 2, pending)).toBe('implementados');
+  });
+
+  it('uses the override with the right number', () => {
+    expect(statusNoun('planned', 1, pending)).toBe('pendiente');
+    expect(statusNoun('planned', 3, pending)).toBe('pendientes');
+    expect(statusNoun('planned', 0, pending)).toBe('pendientes');
+  });
+
+  it('names the status in a legend with a capital letter', () => {
+    expect(statusName('planned')).toBe(STATUS_META.planned.label);
+    expect(statusName('done', pending)).toBe(STATUS_META.done.label);
+    expect(statusName('planned', pending)).toBe('Pendiente');
+  });
+
+  it('renames only the statuses it names in the caption', () => {
+    const counts = { done: 17, partial: 19, planned: 3, unknown: 0 };
+    expect(summarizeCounts(counts)).toBe('17 implementados, 19 parciales, 3 planificados');
+    expect(summarizeCounts(counts, pending)).toBe('17 implementados, 19 parciales, 3 pendientes');
+    expect(summarizeCounts({ ...counts, planned: 1 }, pending)).toBe(
+      '17 implementados, 19 parciales, 1 pendiente',
+    );
+  });
+
+  it('keeps the order of the statuses and leaves out the empty ones', () => {
+    const labels: StatusLabels = {
+      done: { singular: 'hecho', plural: 'hechos' },
+      unknown: { singular: 'sin definir', plural: 'sin definir' },
+    };
+    expect(summarizeCounts({ done: 2, partial: 0, planned: 1, unknown: 4 }, labels)).toBe(
+      '2 hechos, 1 planificado, 4 sin definir',
+    );
+  });
+});
+
+describe('chartLegend', () => {
+  const pending: StatusLabels = { planned: { singular: 'pendiente', plural: 'pendientes' } };
+
+  it('is empty without an override, because the page legend already names the statuses', () => {
+    expect(chartLegend(['done', 'planned'])).toEqual([]);
+  });
+
+  it('lists the statuses that occur, in display order, with the override applied', () => {
+    expect(chartLegend(['planned', 'done', 'planned'], pending)).toEqual([
+      { status: 'done', glyph: STATUS_META.done.glyph, name: 'Implementado' },
+      { status: 'planned', glyph: STATUS_META.planned.glyph, name: 'Pendiente' },
+    ]);
+  });
+
+  it('leaves out the statuses that do not occur', () => {
+    expect(chartLegend(['done'], pending).map((entry) => entry.status)).toEqual(['done']);
+    expect(chartLegend([], pending)).toEqual([]);
   });
 });
 

@@ -121,7 +121,7 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   yolo: {
     label: 'Exportación YOLO',
     status: 'planned',
-    gap: 'YOLO solo entra si sobra tiempo (ADR-10); hoy la API responde unsupported-format.',
+    gap: 'YOLO solo entra si sobra tiempo (ADR-10), no hay compromiso; hoy la API responde unsupported-format.',
     absentText: { in: ['api/src/**'], pattern: 'Yolo' },
   },
   tls: {

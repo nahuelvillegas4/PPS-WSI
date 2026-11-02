@@ -51,9 +51,9 @@ function BlockBody({ block }: { block: Block }) {
     case 'stepper':
       return <Stepper steps={block.steps} />;
     case 'waffle':
-      return <Waffle groups={block.groups} />;
+      return <Waffle groups={block.groups} statusLabels={block.statusLabels} />;
     case 'bars':
-      return <Bars rows={block.rows} />;
+      return <Bars rows={block.rows} statusLabels={block.statusLabels} />;
     case 'quadrants':
       return <Quadrants cells={block.cells} />;
     case 'cards':

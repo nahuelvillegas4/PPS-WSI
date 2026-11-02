@@ -32,6 +32,15 @@ export function keyToAction(key: string): NavAction | null {
   return KEY_ACTIONS.get(normalized) ?? null;
 }
 
+/**
+ * True for the shortcuts that are a single printable character (j, k, f, n, p, ?). WCAG 2.1.4
+ * asks for a way to turn exactly these off; arrows, Page keys, Home, End and Escape are not
+ * affected.
+ */
+export function isCharacterShortcut(key: string): boolean {
+  return key.length === 1 && keyToAction(key) !== null;
+}
+
 export function isMoveAction(action: NavAction): action is MoveAction {
   return action === 'next' || action === 'prev' || action === 'first' || action === 'last';
 }
@@ -60,6 +69,20 @@ export function resolveNavTarget(
   }
 }
 
+/**
+ * Like `resolveNavTarget`, but `null` when the move would stay on the current stop (already at
+ * the first or last one). The caller then leaves the key alone, so PageDown, End and the like
+ * keep their native scrolling at the ends.
+ */
+export function moveDestination(
+  ids: readonly string[],
+  currentId: string,
+  action: MoveAction,
+): string | null {
+  const target = resolveNavTarget(ids, currentId, action);
+  return target === currentId ? null : target;
+}
+
 export interface KeyModifiers {
   ctrlKey: boolean;
   altKey: boolean;
@@ -78,12 +101,14 @@ export interface KeyTarget {
 }
 
 const TEXT_TAGS: ReadonlySet<string> = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
-const SCROLL_REGION_KEYS: ReadonlySet<string> = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End']);
+/** The keys a tab bar and a scrollable region use themselves; every other key still reaches us. */
+const WIDGET_KEYS: ReadonlySet<string> = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End']);
 
 /**
  * True when the global handler must not react: shortcuts of the browser (Ctrl, Alt, Meta), keys
- * typed into a field, arrows inside a tab bar, anything while a dialog is open. Shift alone
- * is allowed only for `?`, which is Shift+/ on most layouts.
+ * typed into a field, the keys a tab bar or a scrollable table uses (arrows, Home, End), anything
+ * while a dialog is open. The clicker keys (PageUp, PageDown) and the letters keep working from a
+ * focused tab. Shift alone is allowed only for `?`, which is Shift+/ on most layouts.
  */
 export function shouldIgnoreKey(
   key: string,
@@ -95,9 +120,9 @@ export function shouldIgnoreKey(
   if (modifiers.shiftKey && key !== '?') return true;
   if (dialogOpen) return true;
   if (target === null) return false;
-  if (target.inOpenDialog || target.inTablist) return true;
+  if (target.inOpenDialog) return true;
   if (TEXT_TAGS.has(target.tagName.toUpperCase()) || target.isContentEditable) return true;
-  return target.inScrollRegion && SCROLL_REGION_KEYS.has(key);
+  return (target.inTablist || target.inScrollRegion) && WIDGET_KEYS.has(key);
 }
 
 /** Display text of the keys that have a symbol; other keys show as they are. */

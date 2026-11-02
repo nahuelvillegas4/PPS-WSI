@@ -40,6 +40,9 @@ async function drawNow(
   // The palette is read when the task runs, after earlier renders, from the live CSS variables.
   if (currentColorScheme() !== scheme) throw new StaleSchemeError();
   const mermaid = await loadMermaid();
+  // The first import can take seconds, and the OS scheme may flip meanwhile: the palette read
+  // below would then belong to another scheme than the cache key this render is stored under.
+  if (currentColorScheme() !== scheme) throw new StaleSchemeError();
   const palette = readPalette();
   configureMermaid(mermaid, palette, readFontFamily());
   const elementId = queue.nextElementId();

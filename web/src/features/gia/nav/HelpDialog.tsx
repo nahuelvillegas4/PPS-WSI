@@ -5,10 +5,18 @@ import { KEY_HELP, displayKey } from './sectionNav';
 interface HelpDialogProps {
   open: boolean;
   onClose: () => void;
+  /** Whether the single-character shortcuts (j, k, f, n, p, ?) are on. */
+  characterKeys: boolean;
+  onCharacterKeysChange: (enabled: boolean) => void;
 }
 
 /** Keyboard help (`?`). A native modal dialog: Escape closes it and focus stays inside. */
-export function HelpDialog({ open, onClose }: HelpDialogProps) {
+export function HelpDialog({
+  open,
+  onClose,
+  characterKeys,
+  onCharacterKeysChange,
+}: HelpDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -51,6 +59,16 @@ export function HelpDialog({ open, onClose }: HelpDialogProps) {
           pestañas, las flechas cambian de pestaña. En modo presentación se ocultan el índice, las
           notas y el detalle.
         </p>
+        <label className="gia-help-toggle">
+          <input
+            type="checkbox"
+            checked={characterKeys}
+            onChange={(event) => {
+              onCharacterKeysChange(event.target.checked);
+            }}
+          />
+          Atajos de una sola tecla (j, k, f, n, p, ?)
+        </label>
         <Legend />
         <div className="gia-help-actions">
           <button type="button" onClick={onClose}>

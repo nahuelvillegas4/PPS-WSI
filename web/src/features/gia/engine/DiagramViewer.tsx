@@ -10,7 +10,7 @@ import {
 import { DIAGRAMS } from '../model/registry';
 import { neighbour } from './diagramSiblings';
 import { StaleSchemeError, renderDiagram } from './renderDiagram';
-import { describeRenderError, parseViewBox, retagSvgIds } from './svgTools';
+import { parseViewBox, renderErrorMessage, retagSvgIds } from './svgTools';
 import { useColorScheme } from './useColorScheme';
 import {
   IDENTITY,
@@ -109,7 +109,7 @@ export function DiagramViewer({ ids, initialId, onClose }: DiagramViewerProps) {
           natural: NO_SIZE,
           transform: IDENTITY,
           minZoom: MIN_ZOOM,
-          error: describeRenderError(error),
+          error: renderErrorMessage(error),
         });
       },
     );
@@ -118,12 +118,16 @@ export function DiagramViewer({ ids, initialId, onClose }: DiagramViewerProps) {
     };
   }, [diagram, scheme, key]);
 
-  // The wheel listener must be non-passive to stop the page behind from scrolling.
+  // The wheel listener must be non-passive to stop the page behind from scrolling. It sits on the
+  // dialog, not on the stage, so the wheel over the toolbar, the hint strip and the backdrop does
+  // not scroll the page behind either; only a wheel over the stage zooms.
   useEffect(() => {
+    const frame = dialog.current;
     const area = stage.current;
-    if (!area) return;
+    if (!frame || !area) return;
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
+      if (!(event.target instanceof Node) || !area.contains(event.target)) return;
       const rect = area.getBoundingClientRect();
       const cursor = { x: event.clientX - rect.left, y: event.clientY - rect.top };
       const factor = wheelFactor(event.deltaY, event.deltaMode);
@@ -133,9 +137,9 @@ export function DiagramViewer({ ids, initialId, onClose }: DiagramViewerProps) {
           : current,
       );
     };
-    area.addEventListener('wheel', onWheel, { passive: false });
+    frame.addEventListener('wheel', onWheel, { passive: false });
     return () => {
-      area.removeEventListener('wheel', onWheel);
+      frame.removeEventListener('wheel', onWheel);
     };
   }, []);
 

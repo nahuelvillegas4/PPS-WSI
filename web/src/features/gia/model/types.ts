@@ -9,6 +9,9 @@ export interface StepDef {
   note?: string;
 }
 
+/** Display names for a status in singular and plural, used when the default noun misleads. */
+export type StatusLabels = Partial<Record<Status, { singular: string; plural: string }>>;
+
 /** One renderable piece of a tab. Diagrams and tables are referenced by id (see `registry.ts`). */
 export type Block =
   | { kind: 'diagram'; id: string }
@@ -19,10 +22,14 @@ export type Block =
   | {
       kind: 'waffle';
       groups: readonly { label: string; cells: readonly { status: Status; title: string }[] }[];
+      /** Overrides how a status is named in captions and the legend (for example `planned` as "pendiente"). */
+      statusLabels?: StatusLabels;
     }
   | {
       kind: 'bars';
       rows: readonly { label: string; segments: readonly { status: Status; value: number }[] }[];
+      /** Same override as in the waffle. */
+      statusLabels?: StatusLabels;
     }
   | {
       kind: 'quadrants';

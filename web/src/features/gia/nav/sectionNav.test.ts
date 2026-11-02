@@ -4,8 +4,10 @@ import {
   type KeyModifiers,
   type KeyTarget,
   displayKey,
+  isCharacterShortcut,
   isMoveAction,
   keyToAction,
+  moveDestination,
   resolveNavTarget,
   shouldIgnoreKey,
 } from './sectionNav';
@@ -66,6 +68,20 @@ describe('keyToAction', () => {
   });
 });
 
+describe('isCharacterShortcut', () => {
+  it('is true only for the single-character shortcuts, in either case', () => {
+    for (const key of ['j', 'k', 'f', 'n', 'p', '?', 'J']) {
+      expect(isCharacterShortcut(key)).toBe(true);
+    }
+  });
+
+  it('is false for the named keys and for characters that mean nothing', () => {
+    for (const key of ['ArrowRight', 'PageDown', 'PageUp', 'Home', 'End', 'Escape', 'a', ' ']) {
+      expect(isCharacterShortcut(key)).toBe(false);
+    }
+  });
+});
+
 describe('isMoveAction', () => {
   it('is true only for the four movements', () => {
     for (const action of ['next', 'prev', 'first', 'last'] as const) {
@@ -107,6 +123,26 @@ describe('resolveNavTarget', () => {
   });
 });
 
+describe('moveDestination', () => {
+  it('is the next or previous stop when there is one', () => {
+    expect(moveDestination(IDS, 'b', 'next')).toBe('c');
+    expect(moveDestination(IDS, 'b', 'prev')).toBe('a');
+    expect(moveDestination(IDS, 'b', 'first')).toBe('a');
+    expect(moveDestination(IDS, 'b', 'last')).toBe('d');
+  });
+
+  it('is null at the ends, so the key keeps its native effect there', () => {
+    expect(moveDestination(IDS, 'd', 'next')).toBeNull();
+    expect(moveDestination(IDS, 'd', 'last')).toBeNull();
+    expect(moveDestination(IDS, 'a', 'prev')).toBeNull();
+    expect(moveDestination(IDS, 'a', 'first')).toBeNull();
+  });
+
+  it('is null when there are no stops', () => {
+    expect(moveDestination([], 'a', 'next')).toBeNull();
+  });
+});
+
 describe('shouldIgnoreKey', () => {
   it('lets a plain key on the page through', () => {
     expect(shouldIgnoreKey('j', NO_MODS, PLAIN_TARGET, false)).toBe(false);
@@ -131,10 +167,19 @@ describe('shouldIgnoreKey', () => {
     );
   });
 
-  it('ignores events from a tab bar, which uses the arrows itself', () => {
-    expect(
-      shouldIgnoreKey('ArrowRight', NO_MODS, { ...PLAIN_TARGET, inTablist: true }, false),
-    ).toBe(true);
+  it('leaves the keys of a tab bar (arrows, Home, End) to it', () => {
+    const inTablist = { ...PLAIN_TARGET, inTablist: true };
+    for (const key of ['ArrowRight', 'ArrowLeft', 'Home', 'End']) {
+      expect(shouldIgnoreKey(key, NO_MODS, inTablist, false)).toBe(true);
+    }
+  });
+
+  it('still reacts to the clicker keys and the letters while a tab has the focus', () => {
+    const inTablist = { ...PLAIN_TARGET, inTablist: true };
+    for (const key of ['PageDown', 'PageUp', 'j', 'k', 'p', 'f', 'n', 'Escape']) {
+      expect(shouldIgnoreKey(key, NO_MODS, inTablist, false)).toBe(false);
+    }
+    expect(shouldIgnoreKey('?', { ...NO_MODS, shiftKey: true }, inTablist, false)).toBe(false);
   });
 
   it('ignores everything while a dialog is open, wherever the focus is', () => {

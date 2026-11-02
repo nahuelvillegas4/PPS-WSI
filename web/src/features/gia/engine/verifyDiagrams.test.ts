@@ -38,6 +38,16 @@ describe('verifyDiagrams', () => {
     expect(progress).toEqual(['1/3', '2/3', '3/3']);
   });
 
+  it('reports a lost Mermaid chunk without the address of the asset', async () => {
+    const lost = new TypeError(
+      'Failed to fetch dynamically imported module: http://127.0.0.1:5195/assets/mermaid.core-X.js',
+    );
+    const summary = await verifyDiagrams(['tesela'], () => Promise.reject(lost));
+    const message = summary.failures[0]?.message ?? '';
+    expect(message).toMatch(/No se pudo cargar/);
+    expect(message).not.toMatch(/https?:|127\.0\.0\.1|5195/);
+  });
+
   it('handles an empty catalogue', async () => {
     const summary = await verifyDiagrams([], () => Promise.resolve(OK));
     expect(summaryLine(summary)).toBe('0 de 0 diagramas correctos');

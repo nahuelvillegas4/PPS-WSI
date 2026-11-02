@@ -1,6 +1,6 @@
 /** Arithmetic behind the waffle, the stacked bars and the quadrants. Totals are always computed. */
-import { countBy, type Decision, type Status } from '../model/status';
-import type { Block } from '../model/types';
+import { countBy, STATUS_META, type Decision, type Status } from '../model/status';
+import type { Block, StatusLabels } from '../model/types';
 import { STATUS_ORDER } from './statusOrder';
 
 export type StatusCounts = Record<Status, number>;
@@ -23,15 +23,50 @@ const COUNT_NOUNS: Readonly<Record<Status, readonly [string, string]>> = {
   unknown: ['sin decidir', 'sin decidir'],
 };
 
+/**
+ * The noun for `count` items of a status: "1 implementado", "3 implementados". `labels` replaces
+ * the default noun of the statuses it names (for example `planned` as "pendiente"/"pendientes").
+ */
+export function statusNoun(status: Status, count: number, labels?: StatusLabels): string {
+  const override = labels?.[status];
+  const [singular, plural] = override
+    ? ([override.singular, override.plural] as const)
+    : COUNT_NOUNS[status];
+  return count === 1 ? singular : plural;
+}
+
+/** The name of a status in a legend: "Implementado", or the capitalised override ("Pendiente"). */
+export function statusName(status: Status, labels?: StatusLabels): string {
+  const singular = labels?.[status]?.singular;
+  if (singular === undefined) return STATUS_META[status].label;
+  return singular.charAt(0).toLocaleUpperCase('es') + singular.slice(1);
+}
+
 /** "17 implementados, 19 parciales, 1 planificado"; statuses with no items are left out. */
-export function summarizeCounts(counts: StatusCounts): string {
+export function summarizeCounts(counts: StatusCounts, labels?: StatusLabels): string {
   return STATUS_ORDER.filter((status) => counts[status] > 0)
-    .map((status) => {
-      const n = counts[status];
-      const [singular, plural] = COUNT_NOUNS[status];
-      return `${String(n)} ${n === 1 ? singular : plural}`;
-    })
+    .map((status) => `${String(counts[status])} ${statusNoun(status, counts[status], labels)}`)
     .join(', ');
+}
+
+export interface LegendEntry {
+  status: Status;
+  glyph: string;
+  name: string;
+}
+
+/**
+ * The legend of a chart that renames statuses: the glyph and the name of every status that
+ * occurs in it, in display order. Empty when there is no override, because the page legend
+ * already says what the default names are.
+ */
+export function chartLegend(statuses: readonly Status[], labels?: StatusLabels): LegendEntry[] {
+  if (labels === undefined) return [];
+  return STATUS_ORDER.filter((status) => statuses.includes(status)).map((status) => ({
+    status,
+    glyph: STATUS_META[status].glyph,
+    name: statusName(status, labels),
+  }));
 }
 
 export interface BarSegment {

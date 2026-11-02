@@ -4,6 +4,7 @@ import type { CurrentUser } from '../features/auth/authApi';
 import { useSession } from '../features/auth/useSession';
 import { CatalogPage } from '../features/catalog/CatalogPage';
 import { ProjectMembersPage } from '../features/members/ProjectMembersPage';
+import { LoadErrorBoundary } from '../features/gia/render/LoadErrorBoundary';
 import { UsersPage } from '../features/users/UsersPage';
 import { ViewerPage } from '../features/viewer/ViewerPage';
 import { assertNever } from '../shared/assertNever';
@@ -54,14 +55,17 @@ function SignedInApp({ user, onSignOut }: SignedInAppProps) {
     case 'gia':
       if (!isGlobalAdmin) return null;
       return (
-        <Suspense fallback={<p className="app-status">Cargando la guía…</p>}>
-          <GiaPage
-            onBack={goToCatalog}
-            onNavigate={(target) => {
-              navigate(target === 'users' ? '/admin/users' : '/');
-            }}
-          />
-        </Suspense>
+        // A failed chunk load (stale deploy, network) would otherwise leave a blank page.
+        <LoadErrorBoundary onBack={goToCatalog}>
+          <Suspense fallback={<p className="app-status">Cargando la guía…</p>}>
+            <GiaPage
+              onBack={goToCatalog}
+              onNavigate={(target) => {
+                navigate(target === 'users' ? '/admin/users' : '/');
+              }}
+            />
+          </Suspense>
+        </LoadErrorBoundary>
       );
     case 'catalog':
       return (
