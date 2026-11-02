@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useReducer, useState } from 'react';
 import type { ProjectRole } from '../access/access';
 import { AddMemberForm } from './AddMemberForm';
 import { assignableUsers, upsertMember, withoutMember } from './memberList';
 import { type Member, addMember, removeMember, updateMemberRole } from './membersApi';
 import { describeMembersError } from './membersErrorMessage';
+import { NO_MEMBERS_ERRORS, membersErrorsReducer } from './membersErrors';
 import { MembersTable } from './MembersTable';
 import { useProjectMembers } from './useProjectMembers';
 import './ProjectMembersPage.css';
@@ -21,7 +22,7 @@ export function ProjectMembersPage({ projectId, isGlobalAdmin, onBack }: Project
     isGlobalAdmin,
   );
   const [pendingUserId, setPendingUserId] = useState<number | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [errors, dispatchErrors] = useReducer(membersErrorsReducer, NO_MEMBERS_ERRORS);
 
   const candidates = useMemo(
     () => (users && members ? assignableUsers(users, members) : null),
@@ -31,11 +32,11 @@ export function ProjectMembersPage({ projectId, isGlobalAdmin, onBack }: Project
   /** Runs a change on one member: locks its row meanwhile and shows the error if it fails. */
   async function runOnMember(userId: number, change: () => Promise<void>): Promise<void> {
     setPendingUserId(userId);
-    setActionError(null);
+    dispatchErrors({ type: 'action-started' });
     try {
       await change();
     } catch (caught: unknown) {
-      setActionError(describeMembersError(caught));
+      dispatchErrors({ type: 'action-failed', message: describeMembersError(caught) });
     } finally {
       setPendingUserId(null);
     }
@@ -56,11 +57,17 @@ export function ProjectMembersPage({ projectId, isGlobalAdmin, onBack }: Project
     });
   }
 
-  /** Throws when the API refuses, so the form can show why. */
-  async function handleAdd(username: string, role: ProjectRole): Promise<void> {
-    setActionError(null);
-    const added = await addMember(projectId, { username, role });
-    changeMembers((current) => upsertMember(current, added));
+  /** Resolves `true` when the member was added; when the API refuses, shows why under the form. */
+  async function handleAdd(username: string, role: ProjectRole): Promise<boolean> {
+    dispatchErrors({ type: 'action-started' });
+    try {
+      const added = await addMember(projectId, { username, role });
+      changeMembers((current) => upsertMember(current, added));
+      return true;
+    } catch (caught: unknown) {
+      dispatchErrors({ type: 'add-failed', message: describeMembersError(caught) });
+      return false;
+    }
   }
 
   return (
@@ -84,9 +91,9 @@ export function ProjectMembersPage({ projectId, isGlobalAdmin, onBack }: Project
           <>
             <section className="members-panel">
               <h2>Miembros</h2>
-              {actionError && (
+              {errors.action && (
                 <p className="members-error" role="alert">
-                  {actionError}
+                  {errors.action}
                 </p>
               )}
               {members === null && <p className="members-status">Cargando miembros…</p>}
@@ -113,7 +120,11 @@ export function ProjectMembersPage({ projectId, isGlobalAdmin, onBack }: Project
                 isGlobalAdmin={isGlobalAdmin}
                 candidates={candidates}
                 candidatesError={usersError}
+                error={errors.add}
                 onAdd={handleAdd}
+                onUsernameEdit={() => {
+                  dispatchErrors({ type: 'username-edited' });
+                }}
               />
             </section>
           </>

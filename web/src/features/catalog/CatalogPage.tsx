@@ -214,7 +214,7 @@ export function CatalogPage({
                   </button>
                 </>
               ) : (
-                <p>No tenés proyectos asignados.</p>
+                <p>No tenés proyectos asignados. Pedile acceso a un administrador del sistema.</p>
               )}
             </div>
           )}

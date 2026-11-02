@@ -92,6 +92,17 @@
   color: var(--muted);
 }
 
+/* Mensaje de validación bajo el campo (hermano del label, alineado con su padding). */
+.create-user-field-error {
+  margin: -0.25rem 1.25rem 0.5rem;
+  font-size: 0.8rem;
+  color: var(--danger);
+}
+
+.create-user-form input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
 @media (max-width: 40rem) {
   .users-header,
   .users-body {

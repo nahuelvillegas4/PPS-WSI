@@ -2,7 +2,6 @@ import { type SyntheticEvent, useState } from 'react';
 import { PROJECT_ROLE_LABELS, type ProjectRole } from '../access/access';
 import type { User } from '../users/usersApi';
 import { MEMBER_USERNAME_MAX_LENGTH, MEMBER_USERNAME_PATTERN, PROJECT_ROLES } from './membersApi';
-import { describeMembersError } from './membersErrorMessage';
 
 interface AddMemberFormProps {
   isGlobalAdmin: boolean;
@@ -10,7 +9,12 @@ interface AddMemberFormProps {
   candidates: readonly User[] | null;
   /** Global admin: why the accounts could not be loaded. */
   candidatesError: string | null;
-  onAdd: (username: string, role: ProjectRole) => Promise<void>;
+  /** Why the last add failed; owned by the screen, which clears it on the next action. */
+  error: string | null;
+  /** Resolves `true` when the member was added (the form resets) and `false` when it was not. */
+  onAdd: (username: string, role: ProjectRole) => Promise<boolean>;
+  /** The person changed the username: the error about the previous one no longer applies. */
+  onUsernameEdit: () => void;
 }
 
 const DEFAULT_ROLE: ProjectRole = 'viewer';
@@ -23,12 +27,13 @@ export function AddMemberForm({
   isGlobalAdmin,
   candidates,
   candidatesError,
+  error,
   onAdd,
+  onUsernameEdit,
 }: AddMemberFormProps) {
   const [username, setUsername] = useState('');
   const [role, setRole] = useState<ProjectRole>(DEFAULT_ROLE);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const trimmed = username.trim();
   const valid = isGlobalAdmin ? trimmed !== '' : MEMBER_USERNAME_PATTERN.test(trimmed);
@@ -38,16 +43,20 @@ export function AddMemberForm({
     event.preventDefault();
     if (!canSubmit) return;
     setSubmitting(true);
-    setError(null);
     try {
-      await onAdd(trimmed, role);
-      setUsername('');
-      setRole(DEFAULT_ROLE);
-    } catch (caught: unknown) {
-      setError(describeMembersError(caught));
+      const added = await onAdd(trimmed, role);
+      if (added) {
+        setUsername('');
+        setRole(DEFAULT_ROLE);
+      }
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function handleUsernameChange(value: string): void {
+    setUsername(value);
+    onUsernameEdit();
   }
 
   return (
@@ -66,7 +75,7 @@ export function AddMemberForm({
               value={username}
               disabled={submitting || candidates === null}
               onChange={(e) => {
-                setUsername(e.target.value);
+                handleUsernameChange(e.target.value);
               }}
             >
               <option value="">
@@ -92,7 +101,7 @@ export function AddMemberForm({
               value={username}
               disabled={submitting}
               onChange={(e) => {
-                setUsername(e.target.value);
+                handleUsernameChange(e.target.value);
               }}
             />
           </label>

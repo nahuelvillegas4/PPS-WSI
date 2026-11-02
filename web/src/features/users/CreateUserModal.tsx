@@ -1,4 +1,4 @@
-import { type SyntheticEvent, useState } from 'react';
+import { type SyntheticEvent, useId, useState } from 'react';
 import type { GlobalRole } from '../access/access';
 import { GLOBAL_ROLE_LABELS } from './globalRoleLabels';
 import {
@@ -7,9 +7,9 @@ import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
   USERNAME_MAX_LENGTH,
-  USERNAME_PATTERN,
 } from './usersApi';
 import { describeUserError } from './usersErrorMessage';
+import { checkNewUser } from './usersValidation';
 import './UsersPage.css';
 
 interface CreateUserModalProps {
@@ -24,12 +24,12 @@ export function CreateUserModal({ onClose, onSubmit }: CreateUserModalProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const usernameMessageId = useId();
+  const passwordMessageId = useId();
+
   const trimmedUsername = username.trim();
-  const canSubmit =
-    USERNAME_PATTERN.test(trimmedUsername) &&
-    password.length >= PASSWORD_MIN_LENGTH &&
-    password.length <= PASSWORD_MAX_LENGTH &&
-    !submitting;
+  const check = checkNewUser(username, password);
+  const canSubmit = check.valid && !submitting;
 
   async function handleSubmit(event: SyntheticEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -77,6 +77,8 @@ export function CreateUserModal({ onClose, onSubmit }: CreateUserModalProps) {
               spellCheck={false}
               value={username}
               disabled={submitting}
+              aria-invalid={check.usernameMessage !== null}
+              aria-describedby={check.usernameMessage === null ? undefined : usernameMessageId}
               onChange={(e) => {
                 setUsername(e.target.value);
               }}
@@ -85,6 +87,11 @@ export function CreateUserModal({ onClose, onSubmit }: CreateUserModalProps) {
               De 3 a 64 caracteres: minúsculas, números, punto, guion y guion bajo.
             </small>
           </label>
+          {check.usernameMessage !== null && (
+            <p id={usernameMessageId} className="create-user-field-error">
+              {check.usernameMessage}
+            </p>
+          )}
 
           <label className="form-field">
             Contraseña
@@ -96,12 +103,19 @@ export function CreateUserModal({ onClose, onSubmit }: CreateUserModalProps) {
               autoComplete="new-password"
               value={password}
               disabled={submitting}
+              aria-invalid={check.passwordMessage !== null}
+              aria-describedby={check.passwordMessage === null ? undefined : passwordMessageId}
               onChange={(e) => {
                 setPassword(e.target.value);
               }}
             />
             <small className="create-user-hint">Al menos {PASSWORD_MIN_LENGTH} caracteres.</small>
           </label>
+          {check.passwordMessage !== null && (
+            <p id={passwordMessageId} className="create-user-field-error">
+              {check.passwordMessage}
+            </p>
+          )}
 
           <label className="form-field">
             Rol global
