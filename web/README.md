@@ -30,19 +30,19 @@ Las pruebas de conversión reproducen los casos C1, C2 y C3 de [`contract/fixtur
 
 ## Dónde se toca cada cosa
 
-| Archivo                                 | Responsabilidad                                                                                                                                  |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/features/viewer/ImageViewer.ts`    | Interfaz que el editor usará; el editor **nunca** depende de OpenSeadragon ([arquitectura §5.2](../docs/arquitectura/03-bloques-y-ejecucion.md)) |
-| `src/features/viewer/OsdImageViewer.ts` | Único archivo que importa OpenSeadragon (lo hace cumplir ESLint)                                                                                 |
-| `src/features/viewer/coordinates.ts`    | Conversión pantalla ↔ nivel 0, el único lugar donde ocurre                                                                                       |
-| `src/features/viewer/ViewerPage.tsx`    | Pantalla del visor: controles, tamaño, escala y coordenada bajo el cursor                                                                        |
-| `src/features/viewer/tileSource.ts`     | URL del descriptor DZI de una imagen                                                                                                             |
-| `src/shared/api.ts`                     | Cliente HTTP: rutas relativas, JSON y errores RFC 9457 (`ApiError`, `NetworkError`)                                                              |
-| `src/features/auth/authApi.ts`          | `login`, `logout`, `fetchCurrentUser` y mensajes de error del ingreso                                                                            |
-| `src/features/auth/useSession.ts`       | Estado de la sesión (consulta `/auth/me` al cargar)                                                                                              |
-| `src/features/auth/LoginPage.tsx`       | Pantalla de ingreso                                                                                                                              |
+| Archivo                                 | Responsabilidad                                                                                                                                            |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/features/viewer/ImageViewer.ts`    | Interfaz que el editor usará; el editor **nunca** depende de OpenSeadragon ([arquitectura §5.2](../docs/arquitectura/03-bloques-y-ejecucion.md))           |
+| `src/features/viewer/OsdImageViewer.ts` | Único archivo que importa OpenSeadragon (lo hace cumplir ESLint)                                                                                           |
+| `src/features/viewer/coordinates.ts`    | Conversión pantalla ↔ nivel 0, el único lugar donde ocurre                                                                                                 |
+| `src/features/viewer/ViewerPage.tsx`    | Pantalla del visor: controles, tamaño, escala y coordenada bajo el cursor                                                                                  |
+| `src/features/viewer/tileSource.ts`     | URL del descriptor DZI de una imagen                                                                                                                       |
+| `src/shared/api.ts`                     | Cliente HTTP: rutas relativas, JSON y errores RFC 9457 (`ApiError`, `NetworkError`)                                                                        |
+| `src/features/auth/authApi.ts`          | `login`, `logout`, `fetchCurrentUser` y mensajes de error del ingreso                                                                                      |
+| `src/features/auth/useSession.ts`       | Estado de la sesión (consulta `/auth/me` al cargar)                                                                                                        |
+| `src/features/auth/LoginPage.tsx`       | Pantalla de ingreso                                                                                                                                        |
 | `src/features/gia/`                     | Guía del sistema en `/gia` (solo administrador global): diagramas, tablas y estado para presentar el proyecto; ver su [README](src/features/gia/README.md) |
-| `src/app/App.tsx`                       | Puerta de sesión y rutas mínimas: `/` y `/images/{id}`                                                                                                              |
+| `src/app/App.tsx`                       | Puerta de sesión y rutas mínimas: `/` y `/images/{id}`                                                                                                     |
 
 ## Decisiones y límites
 

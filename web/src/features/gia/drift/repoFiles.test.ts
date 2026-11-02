@@ -41,13 +41,17 @@ describe('repoFiles helper', () => {
   });
 
   it('searches raw text under globs, honouring exclusions', async () => {
-    const hits = await findRepoText({ in: ['web/src/**'], pattern: 'assertNever' });
+    // Narrow globs on purpose: web/src now holds the whole guide and reading it all is slow.
+    const hits = await findRepoText({
+      in: ['web/src/app/**', 'web/src/shared/**'],
+      pattern: 'assertNever',
+    });
     expect(hits).toContain('web/src/app/App.tsx');
     const without = await findRepoText({
-      in: ['web/src/**'],
+      in: ['web/src/app/**', 'web/src/shared/**'],
       except: ['web/src/app/**'],
       pattern: 'GiaPage = lazy',
     });
     expect(without).not.toContain('web/src/app/App.tsx');
-  });
+  }, 30_000);
 });
