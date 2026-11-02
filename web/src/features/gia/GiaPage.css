@@ -1,0 +1,1267 @@
+/*
+ * Guía del sistema (/gia): diseño, tipografía, tablas, pestañas, bloques y leyenda.
+ * Prefijo gia-. Solo las variables de styles.css (--bg --surface --text --muted --border
+ * --accent --danger --warning), así que el modo oscuro sale solo de prefers-color-scheme.
+ * Los tamaños van en em para que el modo presentación escale todo con un solo font-size.
+ * Los estilos de .gia-diagram* y .gia-viewer* son de engine/diagram.css, no de este archivo.
+ */
+
+/* ---------- Base ---------- */
+
+.gia-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--text);
+  /* Red de seguridad: la página nunca se desplaza en horizontal (las tablas lo hacen adentro). */
+  overflow-x: clip;
+}
+
+.gia-root[data-present='true'] {
+  font-size: clamp(18px, 1.6vw, 28px);
+}
+
+.gia-root h1,
+.gia-root h2,
+.gia-root h3,
+.gia-root p {
+  overflow-wrap: anywhere;
+}
+
+/* Texto solo para lectores de pantalla. */
+.gia-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.gia-root a:focus-visible,
+.gia-root summary:focus-visible,
+.gia-root [tabindex]:focus-visible,
+.gia-root select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- Estado: relleno + estilo del borde + símbolo ---------- */
+
+.gia-st--done {
+  border: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  color: var(--text);
+}
+
+.gia-st--partial {
+  border: 2px solid var(--warning);
+  background: color-mix(in srgb, var(--warning) 16%, var(--surface));
+  color: var(--text);
+}
+
+.gia-st--planned {
+  border: 2px dashed var(--muted);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.gia-st--unknown {
+  border: 2px dotted var(--muted);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.gia-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0.02em 0.6em;
+  border-radius: 999px;
+  font-size: 0.82em;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.gia-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gia-decision,
+.gia-approval {
+  display: inline-block;
+  padding: 0.02em 0.6em;
+  border: 2px solid var(--text);
+  border-radius: 4px;
+  font-size: 0.78em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.gia-decision--decidido {
+  border-style: solid;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+}
+
+.gia-decision--propuesto {
+  border-style: dashed;
+  border-color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 12%, var(--surface));
+}
+
+.gia-decision--pendiente {
+  border-style: dotted;
+  border-color: var(--muted);
+}
+
+.gia-approval--no-registrada {
+  border-style: dashed;
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.gia-approval--pendiente {
+  border-style: dotted;
+  border-color: var(--muted);
+}
+
+.gia-approval--registrada {
+  border-style: solid;
+  border-color: var(--accent);
+}
+
+.gia-mark {
+  font-weight: 700;
+}
+
+.gia-mark--yes,
+.gia-mark--own {
+  color: var(--accent);
+}
+
+.gia-mark--no {
+  color: var(--muted);
+}
+
+.gia-mark--partial {
+  color: var(--warning);
+}
+
+.gia-mark--own {
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+.gia-mono {
+  padding: 0.05em 0.3em;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--text) 7%, var(--surface));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Cabecera, aviso y pie ---------- */
+
+.gia-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em 1em;
+  padding: 1em 2em;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.gia-title {
+  margin: 0 auto 0 0;
+  font-size: 1.3em;
+}
+
+.gia-badge {
+  display: inline-block;
+  padding: 0.15em 0.75em;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.8em;
+  cursor: help;
+}
+
+.gia-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
+
+.gia-header-actions button[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  font-weight: 600;
+}
+
+.gia-banner {
+  margin: 0;
+  padding: 0.6em 2em;
+  border-bottom: 1px solid var(--warning);
+  background: color-mix(in srgb, var(--warning) 14%, var(--surface));
+}
+
+.gia-footer {
+  padding: 1em 2em;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.gia-footer p {
+  max-width: 96em;
+  margin: 0 auto;
+}
+
+.gia-footer a {
+  color: var(--accent);
+}
+
+.gia-present-bar {
+  position: fixed;
+  right: 1em;
+  bottom: 1em;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  padding: 0.35em 0.5em 0.35em 1em;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--text) 25%, transparent);
+}
+
+.gia-progress {
+  font-size: 1.1em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Disposición e índice ---------- */
+
+.gia-layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  width: 100%;
+  max-width: 96em;
+  margin: 0 auto;
+  padding: 0 2em 2em;
+}
+
+.gia-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5em;
+  min-width: 0;
+  padding-top: 1.5em;
+}
+
+/* Por debajo de 1100 px el índice es una fila de chips pegada arriba. */
+.gia-toc {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 1.25em;
+  margin: 0 -2em;
+  padding: 0.5em 2em;
+  overflow-x: auto;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.gia-toc-group {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.gia-toc-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.gia-toc-list {
+  display: flex;
+  gap: 0.4em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gia-toc-link {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+  padding: 0.25em 0.75em;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.85em;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.gia-toc-link:hover {
+  border-color: var(--accent);
+}
+
+.gia-toc-link[aria-current='location'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  font-weight: 700;
+}
+
+.gia-toc-ord {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+@media (min-width: 1100px) {
+  .gia-layout {
+    grid-template-columns: 15em minmax(0, 1fr);
+    column-gap: 2em;
+  }
+
+  .gia-toc {
+    top: 1em;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.25em;
+    max-height: calc(100vh - 2em);
+    margin: 1.5em 0 0;
+    padding: 0;
+    overflow-x: visible;
+    overflow-y: auto;
+    background: transparent;
+    border-bottom: 0;
+  }
+
+  .gia-toc-group {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.3em;
+  }
+
+  .gia-toc-list {
+    flex-direction: column;
+    gap: 0.1em;
+  }
+
+  .gia-toc-link {
+    border: 0;
+    border-left: 3px solid transparent;
+    border-radius: 0 6px 6px 0;
+    background: transparent;
+    white-space: normal;
+  }
+
+  .gia-toc-link:hover {
+    background: color-mix(in srgb, var(--text) 6%, transparent);
+  }
+
+  .gia-toc-link[aria-current='location'] {
+    border-left-color: var(--accent);
+    box-shadow: none;
+  }
+
+  .gia-layout .gia-stop {
+    scroll-margin-top: 1em;
+  }
+}
+
+/* ---------- Paradas y anexos ---------- */
+
+.gia-stop {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25em;
+  min-width: 0;
+  padding: 1.5em;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  scroll-margin-top: 4em;
+}
+
+.gia-stop[data-active='true'] {
+  border-color: var(--accent);
+}
+
+.gia-stop-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+
+.gia-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75em;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.gia-kicker-min::before {
+  content: '· ';
+}
+
+.gia-stop-title {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.gia-headline {
+  max-width: 42em;
+  margin: 0;
+  font-size: clamp(1.3em, 2.2vw, 1.8em);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.gia-detail,
+.gia-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75em;
+}
+
+.gia-detail {
+  padding-top: 1em;
+  border-top: 1px dashed var(--border);
+}
+
+.gia-detail-label,
+.gia-notes-label,
+.gia-callout-tone {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.gia-notes {
+  gap: 0.2em;
+  padding: 0.8em 1em;
+  border: 1px dashed var(--muted);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.gia-notes-say {
+  margin: 0;
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.gia-notes-more {
+  margin: 0.3em 0 0;
+  padding-left: 1.2em;
+  color: var(--muted);
+  font-size: 0.92em;
+}
+
+.gia-footnotes {
+  padding-top: 0.7em;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.gia-footnotes ol {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+  margin: 0;
+  padding-left: 1.4em;
+}
+
+/* ---------- Pestañas ---------- */
+
+.gia-tablist {
+  display: flex;
+  gap: 0.25em;
+  margin-bottom: 1em;
+  padding: 2px 2px 0;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+}
+
+.gia-tab {
+  flex: none;
+  padding: 0.5em 1em;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.gia-tab:hover:not(:disabled) {
+  border-color: transparent;
+  color: var(--text);
+}
+
+.gia-tab[aria-selected='true'] {
+  border-color: var(--border);
+  background: var(--bg);
+  box-shadow: inset 0 -3px 0 var(--accent);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.gia-tab:focus-visible {
+  outline-offset: -2px;
+}
+
+.gia-tabpanel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25em;
+  min-width: 0;
+}
+
+.gia-block {
+  min-width: 0;
+}
+
+/* ---------- Tablas ---------- */
+
+.gia-table-block {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.gia-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.gia-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+.gia-table-caption {
+  padding: 0.7em 0.9em;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.gia-table-title {
+  display: block;
+  font-size: 1.05em;
+  font-weight: 700;
+}
+
+.gia-table-subtitle {
+  display: block;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+.gia-table th,
+.gia-table td {
+  padding: 0.55em 0.75em;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.gia-table thead th {
+  background: color-mix(in srgb, var(--bg) 60%, var(--surface));
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.gia-table tbody th {
+  font-weight: 600;
+}
+
+.gia-table tbody tr:last-child > th,
+.gia-table tbody tr:last-child > td {
+  border-bottom: 0;
+}
+
+.gia-table tfoot th,
+.gia-table tfoot td {
+  border-top: 2px solid var(--border);
+  border-bottom: 0;
+  background: color-mix(in srgb, var(--bg) 60%, var(--surface));
+  font-weight: 700;
+}
+
+.gia-table .gia-align-center {
+  text-align: center;
+}
+
+.gia-table .gia-align-right {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.gia-table-empty {
+  color: var(--muted);
+  text-align: center;
+}
+
+.gia-collapsible {
+  padding: 0.2em 0.9em 0.9em;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.gia-collapsible > summary {
+  padding: 0.6em 0;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.gia-collapsible-count {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.gia-sources {
+  margin-top: 0.5em;
+  color: var(--muted);
+  font-size: 0.8em;
+}
+
+.gia-sources summary {
+  cursor: pointer;
+}
+
+.gia-sources ul {
+  margin: 0.4em 0 0;
+  padding-left: 1.2em;
+}
+
+.gia-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em 0.75em;
+  margin-bottom: 0.6em;
+}
+
+.gia-filter input {
+  min-width: 12em;
+  padding: 0.4em 0.7em;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.gia-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gia-filter-chip {
+  padding: 0.12em 0.7em;
+  border-radius: 999px;
+  font-size: 0.85em;
+}
+
+.gia-filter-chip[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--text);
+  font-weight: 700;
+}
+
+.gia-filter-clear {
+  padding: 0.12em 0.7em;
+  font-size: 0.85em;
+}
+
+.gia-filter-count {
+  margin: 0 0 0 auto;
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+/* ---------- Bloques ---------- */
+
+.gia-callout {
+  padding: 0.8em 1em;
+  border: 1px solid var(--border);
+  border-left-width: 5px;
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.gia-callout p {
+  margin: 0.3em 0 0;
+}
+
+.gia-callout .gia-callout-tone {
+  margin-top: 0;
+}
+
+.gia-callout-title {
+  font-weight: 700;
+}
+
+.gia-callout--info {
+  border-left-color: var(--accent);
+}
+
+.gia-callout--warning {
+  border-color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface));
+}
+
+.gia-callout--honest {
+  border-color: var(--text);
+  background: var(--surface);
+}
+
+.gia-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9em, 1fr));
+  gap: 0.75em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gia-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1em;
+  padding: 0.8em 1em;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.gia-stat-value {
+  font-size: 2em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.gia-stat-label {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.gia-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16em, 1fr));
+  gap: 0.9em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gia-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5em;
+  min-width: 0;
+  padding: 1em;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.gia-card-title {
+  margin: 0;
+  font-size: 1.05em;
+}
+
+.gia-card-body {
+  margin: 0;
+  font-size: 0.95em;
+}
+
+.gia-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gia-tag {
+  padding: 0.02em 0.6em;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.78em;
+}
+
+.gia-stepper {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10.5em, 1fr));
+  gap: 0.9em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gia-step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  min-width: 0;
+  padding: 0.9em;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.gia-step-n {
+  display: grid;
+  place-items: center;
+  width: 1.8em;
+  height: 1.8em;
+  border-radius: 50%;
+  background: var(--text);
+  color: var(--surface);
+  font-size: 0.9em;
+  font-weight: 700;
+}
+
+.gia-step-title {
+  margin: 0;
+  font-size: 1em;
+  line-height: 1.3;
+}
+
+.gia-step-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+  margin-top: auto;
+}
+
+.gia-step-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82em;
+}
+
+.gia-waffle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5em 2.5em;
+}
+
+.gia-waffle-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+  margin: 0;
+}
+
+.gia-waffle-caption {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75em;
+}
+
+.gia-waffle-total,
+.gia-waffle-summary,
+.gia-bar-total {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.gia-waffle-summary {
+  margin: 0;
+}
+
+.gia-waffle-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 2em);
+  gap: 0.25em;
+  font-size: 0.8em;
+}
+
+.gia-waffle-cell {
+  display: grid;
+  place-items: center;
+  width: 2em;
+  height: 2em;
+  border-radius: 4px;
+  cursor: default;
+}
+
+.gia-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.gia-bar-label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75em;
+  margin: 0 0 0.3em;
+}
+
+.gia-bar-track {
+  display: flex;
+  gap: 0.2em;
+  min-height: 2.2em;
+}
+
+.gia-bar-segment {
+  display: flex;
+  flex-basis: 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 0 0.3em;
+  overflow: hidden;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.gia-quadrants {
+  width: 100%;
+  min-width: 28em;
+  border-collapse: separate;
+  border-spacing: 0.5em;
+  table-layout: fixed;
+}
+
+.gia-quadrants th {
+  font-weight: 600;
+  text-align: center;
+}
+
+.gia-quadrants tbody th {
+  width: 8em;
+  text-align: left;
+}
+
+.gia-quadrant {
+  padding: 0.7em 0.9em;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  vertical-align: top;
+}
+
+.gia-quadrant-count {
+  display: block;
+  font-size: 2em;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.gia-quadrant-items {
+  margin: 0.4em 0 0;
+  padding-left: 1.1em;
+  color: var(--muted);
+  font-size: 0.82em;
+}
+
+.gia-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+  margin: 0;
+  padding-left: 1.3em;
+}
+
+.gia-live {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6em;
+  margin: 0;
+  padding: 0.6em 0.9em;
+  border-radius: 8px;
+  font-size: 0.92em;
+}
+
+.gia-livelink {
+  align-self: flex-start;
+  border-color: var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.gia-missing {
+  margin: 0;
+  padding: 0.5em 0.8em;
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  color: var(--danger);
+}
+
+/* ---------- Leyenda ---------- */
+
+.gia-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em 1.25em;
+  padding: 0.6em 0.9em;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.gia-legend-title {
+  margin: 0;
+  font-size: 0.9em;
+  font-weight: 700;
+}
+
+.gia-legend-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em 1.25em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gia-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.88em;
+}
+
+.gia-swatch {
+  display: inline-grid;
+  place-items: center;
+  width: 1.9em;
+  height: 1.5em;
+  border-radius: 4px;
+}
+
+.gia-legend-label {
+  font-weight: 600;
+}
+
+.gia-legend-hint {
+  color: var(--muted);
+}
+
+/* ---------- Ayuda de teclado ---------- */
+
+.gia-help {
+  width: min(36em, calc(100% - 2em));
+  max-height: 85vh;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.gia-help::backdrop {
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.gia-help-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+  padding: 1.25em 1.5em;
+}
+
+.gia-help-body h2 {
+  margin: 0;
+  font-size: 1.2em;
+}
+
+.gia-help-keys {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.gia-help-keys th,
+.gia-help-keys td {
+  padding: 0.35em 0.4em;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.gia-help-keys th {
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.gia-help kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  margin-right: 0.3em;
+  padding: 0.05em 0.45em;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--bg);
+  font: inherit;
+  font-size: 0.85em;
+  text-align: center;
+}
+
+.gia-help-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+.gia-help-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ---------- Modo presentación ---------- */
+
+:root:has(.gia-root[data-present='true']) {
+  scroll-snap-type: y proximity;
+}
+
+.gia-root[data-present='true'] .gia-header,
+.gia-root[data-present='true'] .gia-toc,
+.gia-root[data-present='true'] .gia-detail,
+.gia-root[data-present='true'] .gia-notes,
+.gia-root[data-present='true'] .gia-sources {
+  display: none;
+}
+
+.gia-root[data-present='true'] .gia-layout {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: none;
+  padding: 0 3em;
+}
+
+.gia-root[data-present='true'] .gia-main {
+  gap: 0;
+  padding-top: 0;
+}
+
+.gia-root[data-present='true'] .gia-stop {
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2em 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  scroll-margin-top: 0;
+  scroll-snap-align: start;
+}
+
+.gia-root[data-present='true'] .gia-headline {
+  max-width: none;
+}
+
+/* ---------- Pantallas angostas ---------- */
+
+@media (max-width: 40rem) {
+  .gia-header {
+    padding: 0.75em 1em;
+  }
+
+  .gia-banner,
+  .gia-footer {
+    padding-left: 1em;
+    padding-right: 1em;
+  }
+
+  .gia-layout {
+    padding: 0 1em 1.5em;
+  }
+
+  .gia-toc {
+    margin: 0 -1em;
+    padding: 0.5em 1em;
+  }
+
+  .gia-main {
+    gap: 1.5em;
+  }
+
+  .gia-stop {
+    padding: 1em;
+  }
+
+  .gia-headline {
+    font-size: 1.25em;
+  }
+
+  .gia-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gia-stepper,
+  .gia-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gia-filter-count {
+    margin-left: 0;
+  }
+
+  .gia-root[data-present='true'] .gia-layout {
+    padding: 0 1em;
+  }
+}
