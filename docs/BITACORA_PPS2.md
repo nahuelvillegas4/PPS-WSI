@@ -479,8 +479,109 @@ Las geometrías se guardan como `jsonb` en nivel 0 y la sesión es por cookie ([
 
 ---
 
-### Día 11 (Planificado para la próxima jornada): Preparación de Aceptación Formal de la PPS 2 y Documentación Final (Incremento I4, PPS 2 §7)
-- **Fecha prevista:** 02/11/2026
+### Día 11: Contrato 0.2.0, Decisiones de Arquitectura (ADR-15 a 17) y Autorización por Proyecto / Membresías en Backend
+- **Fecha:** 31/10/2026 y 01/11/2026
+- **Horas dedicadas:** 6 horas (Acumulado: 70 horas)
+- **Módulo:** Contrato, Arquitectura y Backend / Acceso (PPS 2 — Épicas E2 y E3)
+- **Actividades realizadas:**
+  1. **Evolución del Contrato OpenAPI v0.2.0 y Matriz de Autorización (`contract/`):**
+     - Redefinición y desacoplamiento del modelo de roles: separación entre `GlobalRole` (`admin`, `user`) y `ProjectRole` contextual (`admin`, `annotator`, `viewer`).
+     - Incorporación contractual de endpoints de membresías (`GET/POST/PUT/DELETE /api/v1/projects/{projectId}/members`), filtrado de proyectos con atributo `myRole` y consulta de usuario por identificador (`GET /api/v1/users/{userId}`).
+     - Creación de la matriz compartida `contract/fixtures/authorization-matrix.json` (40 operaciones mapeadas) y extensión de `scripts/check_contract.py` para verificar obligatoriamente que cada operación del OpenAPI cuente con su regla de autorización, escalón de roles y respuestas 401/403/404 acordadas.
+  2. **Formalización de Decisiones de Arquitectura (ADR-15, ADR-16 y ADR-17):**
+     - **ADR-0015 (Roles por proyecto y membresía):** Adopción de modelo de membresías explícitas sin herencia implícita global, delimitando la responsabilidad de anotadores y administradores a nivel proyecto.
+     - **ADR-0016 (Autorización por proyecto y sesión):** Guardas en backend que fallan cerrado basadas en roles y permisos, manteniendo cookies de sesión livianas.
+     - **ADR-0017 (Subida de imágenes desde el navegador):** Diseño del flujo de subida multipart hacia el backend con cuotas de almacenamiento y asignación inmediata a datasets.
+  3. **Modelo de Dominio y Persistencia de Membresías (`Pps.Domain.Access` y `Pps.Infrastructure`):**
+     - Definición de tipos de dominio puro: `ProjectMember`, `ProjectRole`, `Permission`, `Scope` y `AccessPolicy`.
+     - Implementación de `IProjectAccessReader` y `EfProjectAccessReader` con consulta única optimizada para resolver permisos y roles de proyecto sin sobrecargar la base de datos.
+     - Migración EF Core `20261101194357_AddProjectMembership` (`project_members`), asegurando unicidad de `(ProjectId, UserId)` e integridad referencial en cascada.
+  4. **Filtro Global de Autorización y Controlador de Miembros (`Pps.Api`):**
+     - Implementación de `AccessGuardFilter` y `AccessGate`: filtro de acción global que falla cerrado (HTTP 403 / 401) si un endpoint carece de atributo de autorización (`[RequireGlobalRole]`, `[RequireProjectPermission]` o `[AllowAnonymous]`) antes de procesar el cuerpo.
+     - Creación de `ProjectMembersController` cubriendo el ciclo CRUD de miembros, con validación de seguridad para evitar dejar un proyecto sin administradores.
+     - Ajuste de `ProjectsController` para listar proyectos filtrados con `myRole` y protección de `TileAccessController` condicionada a la membresía activa del usuario en el proyecto de la imagen.
+  5. **Verificación Automatizada e Integración:**
+     - Incorporación de 224 nuevas pruebas unitarias y de integración en `Pps.Domain.Tests` (`AccessPolicyTests`, `AccessGuardFilterTests`, `EfProjectAccessReaderTests`, `ProjectMembersControllerTests`, `AuthorizationMatrixTests` y `ProjectsAccessControllerTests`).
+     - Ajuste del guion de aceptación I3 (`scripts/test_acceptance_i3.py`) para registrar membresías previas al flujo de anotación.
+- **Entregables / Commits:**
+  - Commits:
+    - `97255fd` docs(contract): contrato 0.2.0 con roles por proyecto, miembros y subida documentada
+    - `3e5ce14` test(contract): matriz de autorizacion compartida y chequeo obligatorio en check_contract
+    - `bade143` docs(adr): ADR-15 a ADR-17 sobre roles por proyecto, autorizacion y subida desde el navegador
+    - `48e5ed2` fix(contract): endurecer el chequeo de la matriz de autorizacion y aclarar hallazgos de la revision
+    - `7a11164` feat(api): dominio de acceso por proyecto, tabla de miembros y migracion de roles
+    - `871f574` feat(api): autorizacion por proyecto, miembros y proyectos filtrados
+    - `228f9e5` feat(web): permisos por rol, pantallas de usuarios y miembros y subida de imagenes
+    - `8ccc386` docs(adr): estado de implementacion y migracion sin relleno de membresias
+    - `2584cfc` fix(web): mensajes de validacion en usuarios, error viejo en miembros y estado vacio
+  - Archivos creados o modificados:
+    - `contract/openapi/api.v1.yaml`
+    - `contract/fixtures/authorization-matrix.json`
+    - `docs/adr/0015-roles-por-proyecto-y-membresia.md`
+    - `docs/adr/0016-autorizacion-por-proyecto-y-sesion.md`
+    - `docs/adr/0017-subida-de-imagenes-desde-el-navegador.md`
+    - `scripts/check_contract.py`
+    - `api/src/Pps.Domain/Access/*`
+    - `api/src/Pps.Infrastructure/Persistence/Migrations/20261101194357_AddProjectMembership.cs`
+    - `api/src/Pps.Infrastructure/Access/EfProjectAccessReader.cs`
+    - `api/src/Pps.Api/Common/Access/*`
+    - `api/src/Pps.Api/Controllers/Members/ProjectMembersController.cs`
+    - `api/tests/Pps.Domain.Tests/*Access*Tests.cs`
+- **Dificultades y soluciones:**
+  - Al migrar a roles por proyecto sin rellenar membresías por defecto, los proyectos existentes quedaban inaccesibles para usuarios que no fueran administradores globales; se diseñó el sistema de modo que el creador del proyecto se asigne automáticamente como `admin` de proyecto al crearlo, y el filtro global admita bypass por rol global `admin` para tareas de mantenimiento.
+- **Estado:** Completado.
+
+---
+
+### Día 12: Guía Interactiva del Sistema (/gia), Visualización de Arquitectura, Flujos, Contrato y Estado de Calidad
+- **Fecha:** 02/11/2026
+- **Horas dedicadas:** 6 horas (Acumulado: 76 horas)
+- **Módulo:** Documentación Interactiva, Visualización y Transferencia Técnica (Épicas E10 y E11)
+- **Actividades realizadas:**
+  1. **Carcasa, Navegación y Motor Visual de la Guía (`/gia`):**
+     - Creación de la ruta interactiva `/gia` en la SPA React con navegación integral: índice temático, pestañas, bloques de contenido y modo presentación.
+     - Implementación del motor de renderizado dinámico de diagramas Mermaid (`MermaidLazy`), aislando la carga de la librería para no penalizar el rendimiento del visor WSI ni el arranque general de la aplicación.
+  2. **Paradas Temáticas de Arquitectura, Flujos y Fronteras de Servicio:**
+     - Modelado interactivo de las paradas de arquitectura: descomposición en servicios (`gia-api`, `gia-tiles`, `gia-web`, `gia-gateway`, `gia-db`), límites de dominio y comunicación mediante pasarela Nginx.
+     - Diagramas de secuencia y flujo para los procesos críticos: autenticación, protección de teselas por `auth_request`, ciclo de vida de anotaciones y subida de imágenes.
+  3. **Catálogo Interactivo de las 40 Operaciones de la API y Permisos:**
+     - Construcción de la parada interactiva de datos y permisos con el desglose de las 40 operaciones de la API v1.
+     - Mapeo visual de la matriz de autorización, contrastando cada endpoint con los roles requeridos (`GlobalRole` y `ProjectRole`), códigos de estado HTTP y tratamiento estandarizado de problemas RFC 9457.
+  4. **Paradas de Requisitos, Calidad, Decisiones (ADRs) y Estado Final:**
+     - Consolidación visual de requerimientos (funcionales y no funcionales), matriz de riesgos mitigados y objetivos de calidad evaluados (QS-1 a QS-10).
+     - Visualización del compendio de 17 Decisiones de Arquitectura (ADRs), su estado de adopción y justificación técnica.
+     - Síntesis de avance por incrementos (I0 a I4), comparativa del alcance inicial vs. ejecutado, wireframes de pantallas y batería de preguntas orientadas a la defensa académica y transferencia técnica a PPS 1.
+  5. **Pruebas Automatizadas de la Guía y Alineación con el Repositorio:**
+     - Implementación de ayudantes de lectura y validadores sintácticos de diagramas Mermaid (`diagramSyntax.test.ts`, `diagramSyntaxCore.ts`).
+     - Pruebas transversales en Vitest validando que los datos de las paradas, las operaciones listadas y los requisitos coincidan exactamente con el estado real del repositorio y del contrato OpenAPI.
+- **Entregables / Commits:**
+  - Commits:
+    - `7217225` feat(web): ruta /gia y modelo de contenido de la guia del sistema
+    - `343dc61` test(web): ayudantes de lectura del repo y validacion de sintaxis de los diagramas de la guia
+    - `eede499` feat(web): motor de diagramas de la guia con Mermaid lazy
+    - `5e3040e` feat(web): carcasa de la guia con indice, pestanas, bloques y modo presentacion
+    - `da2229e` feat(web): paradas de arquitectura y flujos de la guia
+    - `1821bdc` feat(web): paradas de datos y permisos con las 40 operaciones de la API
+    - `6a7490c` feat(web): portada, requisitos y calidad de la guia
+    - `550d952` feat(web): decisiones, cambio de alcance y avance de la guia
+    - `b8e46b1` feat(web): estado final, preguntas y bocetos de la guia
+    - `ef00b31` test(web): pruebas transversales de la guia contra el repositorio
+    - `f0d9e01` fix(web): errores de carga de la guia, etiquetas de estado y revision de codigo
+    - `39f43b0` fix(web): portada, requisitos y calidad de la guia sin afirmaciones de mas
+    - `54ea7af` fix(web): arquitectura, datos y permisos de la guia alineados con el codigo
+    - `fddd201` fix(web): decisiones, avance y estado final de la guia con lo que consta en el repositorio
+  - Archivos creados o modificados:
+    - `web/src/features/gia/*` (paradas 01 a 11, componentes, wireframes, tests)
+    - `web/src/app/App.tsx`
+    - `web/package.json`
+- **Dificultades y soluciones:**
+  - La inclusión de Mermaid.js aumentaba considerablemente el tamaño inicial del bundle de la SPA; se solucionó implementando un componente envoltorio con `React.lazy()` y `Suspense`, cargando Mermaid únicamente cuando el usuario navega a `/gia` o activa una parada con diagramas.
+- **Estado:** Completado.
+
+---
+
+### Día 13 (Planificado para la próxima jornada): Preparación de Aceptación Formal de la PPS 2 y Documentación Final (Incremento I4, PPS 2 §7)
+- **Fecha prevista:** 03/11/2026
 - **Módulo:** Cierre y Aceptación Formal (Incremento I4, PPS 2 §7, ADR-11)
 - **Tareas a realizar:**
   1. Congelamiento y verificación final de la OpenAPI 3.0 de la API (`contract/openapi/api.v1.yaml`).
